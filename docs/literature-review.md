@@ -1,198 +1,339 @@
 # Literature Review
 
-## Research Questions
+## Purpose
 
-For each paper, we want to answer:
+This document tracks research related to machine learning, artificial intelligence, optimization, and disk I/O scheduling.
 
-1. What AI/ML modifications to disk I/O scheduling have previously been researched?
-2. What metrics were used to measure success?
-3. What tools/simulators were used?
-4. What can our project do differently?
+For each paper, we want to answer four questions:
+
+1. **What AI/ML modifications to disk I/O have already been researched?**
+2. **What metrics were used to measure success?**
+3. **What tools or simulators were used?**
+4. **What can our project do differently?**
 
 ---
 
-## Papers
+# Literature Matrix
 
-### A Survey on AI for Storage
+| Paper | Year | Approach | Modification | Metrics | Tools | Relevance / Difference |
+|---|---:|---|---|---|---|---|
+| **A Survey on AI for Storage** | 2022 | Survey | Reviews AI applications across storage systems | TBD | TBD | Broad background for AI + storage |
+| **Towards Machine Learning-Based I/O Scheduling** | 2025? ⚠️ | ML / Neural Networks | Workload classification + scheduler selection; NN latency prediction | HDD throughput (ops/sec) | TBD | Our DQN may directly learn request ordering |
+| **Hardware Design of a New Genetic Based Disk Scheduling Method** | 2011 | Genetic Programming + NN | GP schedules requests; NN models seek time | Makespan | TBD | DiskSim may replace the need for an NN seek-time model |
+| **Evolving Neural Networks Through Augmenting Topologies** | 2002 | NEAT | Evolves NN topology and weights | N/A | NEAT | Original project direction; possible future comparison |
+| **Self-Learning Disk Scheduling** | 2009 | Learning-based scheduling | TBD after review | TBD | TBD | Useful historical reference for ML disk scheduling |
+| **Optimization of Disk Seek Operations Using Neural Networks** | 2002 | Neural Network | NN selects an existing disk scheduling algorithm | TBD | TBD | Our DQN attempts to construct scheduling decisions rather than only select an existing algorithm |
+| **Towards Better Understanding of Black-box Auto-Tuning** | 2018 | Multiple optimization techniques | Storage-system parameter tuning | TBD | TBD | Related AI/optimization work but broader than disk request ordering |
+
+> ⚠️ Information marked **TBD** or **?** has not yet been verified from the paper.
+
+---
+
+# 1. A Survey on AI for Storage
 
 **Year:** 2022
 
-**Purpose:**
-Survey of AI applications across different components of storage systems.
+### Current Notes
 
-**Why it matters:**
-Provides broader context for how AI has been applied to storage systems.
+Survey of artificial intelligence applications across different components of storage systems.
 
-**Questions to investigate:**
-- Which sections specifically discuss I/O scheduling?
-- Which ML/RL methods have already been attempted?
-- Which papers should we follow from its references?
+### Why It Matters
 
----
+Useful for:
 
-### Towards Machine Learning-Based I/O Scheduling
+- Establishing broader AI + storage context
+- Identifying previous approaches
+- Finding additional papers through its references
 
-**Year:** 2025? — verify publication information.
+### Review Status
 
-**Approaches:**
-
-1. Classify workloads and choose the scheduler expected to provide the
-   highest throughput.
-2. Modify shortest-job-first by training a neural network to predict request
-   latency and prioritize requests expected to complete quickly.
-
-**Metrics:**
-- HDD throughput (operations/second)
-
-**Tools:**
-- TODO: determine from paper.
-
-**Possible difference from our project:**
-Rather than using a neural network to select an existing scheduler or predict
-latency, our current project proposes using reinforcement learning to learn
-request-ordering decisions based on simulated performance feedback.
+| Question | Answer |
+|---|---|
+| AI/ML modification | Broad survey |
+| Metrics | TBD |
+| Tools | TBD |
+| Useful citations found | TBD |
+| Fully reviewed | ⬜ |
 
 ---
 
-### Hardware Design of a New Genetic Based Disk Scheduling Method
+# 2. Towards Machine Learning-Based I/O Scheduling
+
+**Year:** 2025? — **needs verification**
+
+### Current Notes
+
+Two approaches were identified from the current team notes.
+
+#### Approach 1
+
+Classify workloads and choose the scheduler with the highest expected throughput.
+
+#### Approach 2
+
+Modify shortest-job-first by training a neural network to predict the latency of each request and prioritize requests expected to complete quickly.
+
+### Current Metric
+
+- HDD throughput in operations per second
+
+### Possible Difference From Our Project
+
+Their approach appears to use neural networks for scheduler selection and/or latency prediction.
+
+Our proposed DQN attempts to learn request-ordering decisions using simulated performance feedback.
+
+### Review Status
+
+| Question | Answer |
+|---|---|
+| AI/ML modification | Classification + NN |
+| Metrics | Throughput |
+| Tools | TBD |
+| Dataset/workload | TBD |
+| Main result | TBD |
+| Fully reviewed | ⬜ |
+
+---
+
+# 3. Hardware Design of a New Genetic Based Disk Scheduling Method
 
 **Year:** 2011
 
-**Approach:**
-Used genetic programming for disk-request scheduling and a neural network
-to simulate seek time.
+### Current Notes
 
-**Metric:**
-- Makespan: time at which the final task in the execution order completes.
+The study used:
 
-**Why it matters:**
-Contains a useful review of earlier HDD scheduling research.
+- Genetic Programming for scheduling disk requests
+- A neural network to simulate seek time
 
-**Possible difference from our project:**
-DiskSim may provide the disk simulation rather than requiring a neural
-network to model seek time.
+### Metric
 
-**Need to verify:**
-- Exact experimental setup
-- Simulator/hardware used
-- How workloads were generated
+**Makespan**
+
+Defined in the current notes as the time when the final task in the execution order completes.
+
+### Why It Matters
+
+The paper reportedly contains a useful review of HDD scheduling research available at the time.
+
+### Possible Difference From Our Project
+
+Our project intends to use DiskSim for disk simulation rather than training a neural network specifically to simulate seek time.
+
+This needs to be confirmed after reviewing DiskSim's capabilities and the paper's methodology.
+
+### Review Status
+
+| Question | Answer |
+|---|---|
+| AI/ML modification | Genetic Programming + NN |
+| Metrics | Makespan |
+| Tools | TBD |
+| Workload | TBD |
+| Main result | TBD |
+| Fully reviewed | ⬜ |
 
 ---
 
-### Evolving Neural Networks Through Augmenting Topologies
+# 4. Evolving Neural Networks Through Augmenting Topologies
 
-**Authors:** Stanley and Miikkulainen
-
+**Authors:** Stanley & Miikkulainen  
 **Year:** 2002
 
-**Approach:**
-Introduces NEAT, an evolutionary approach that evolves neural-network
-weights and topology.
+### Approach
 
-**Relevance:**
-This was part of the project's original NEAT direction.
+Introduces **NEAT — NeuroEvolution of Augmenting Topologies**.
 
-**Current status:**
-NEAT is not part of the current minimum DQN implementation.
+NEAT evolves neural-network topology and weights through evolutionary methods.
 
-**Possible future experiment:**
-Compare DQN with a NEAT-based scheduling approach if time and project
-scope allow.
+### Project Relevance
+
+NEAT was part of the original project direction.
+
+The current project direction instead focuses on **Deep Q-Networks**.
+
+### Current Decision
+
+| Approach | Status |
+|---|---|
+| DQN | 🔴 Primary |
+| NEAT | 🟢 Optional / Future Experiment |
+
+NEAT should not increase the minimum implementation scope unless the team later decides to include it.
 
 ---
 
-### Self-Learning Disk Scheduling
+# 5. Self-Learning Disk Scheduling
 
 **Year:** 2009
 
-**Purpose:**
-Investigated learning-based disk scheduling and discussed the research
-gap around machine learning for disk I/O scheduling at the time.
+### Current Notes
 
-**Why it matters:**
-Useful for establishing the historical development of ML-based disk
-scheduling.
+The paper appears useful for understanding the historical research gap surrounding machine learning and disk I/O scheduling.
 
-**Need to investigate:**
-- Learning algorithm
-- Workload
-- Evaluation metrics
-- Simulator/hardware
-- Main findings
+### Potential Use
+
+Could help establish a chronological development:
+
+```text
+Traditional Scheduling
+        ↓
+Early Neural Network Approaches
+        ↓
+Self-Learning Scheduling
+        ↓
+Genetic / Optimization Methods
+        ↓
+Modern ML / RL Approaches
+        ↓
+Our DQN Experiment
+```
+
+### Review Status
+
+| Question | Answer |
+|---|---|
+| Learning technique | TBD |
+| Scheduling modification | TBD |
+| Metrics | TBD |
+| Simulator/hardware | TBD |
+| Main findings | TBD |
+| Fully reviewed | ⬜ |
 
 ---
 
-### Optimization of Disk Seek Operations Using Neural Networks
+# 6. Optimization of Disk Seek Operations Using Neural Networks
 
 **Year:** 2002
 
-**Approach:**
-Used a neural network to select an appropriate disk I/O scheduling
-algorithm based on current conditions.
+### Current Notes
 
-The neural network selected between existing algorithms rather than
-creating a new scheduling policy.
+A neural network was used to select an appropriate existing disk I/O scheduling algorithm based on current conditions.
 
-**Possible difference from our project:**
-Our DQN attempts to construct the request ordering itself rather than
-only choosing an existing scheduler.
+The neural network therefore selected among algorithms rather than directly creating a new scheduling policy.
+
+### Possible Difference From Our Project
+
+```text
+Previous Approach
+
+Current conditions
+       ↓
+Neural Network
+       ↓
+Choose Existing Scheduler
+
+
+Our Proposed Approach
+
+Current requests/state
+       ↓
+      DQN
+       ↓
+Choose Request Ordering
+```
+
+### Review Status
+
+| Question | Answer |
+|---|---|
+| AI/ML modification | NN scheduler selection |
+| Metrics | TBD |
+| Tools | TBD |
+| Main findings | TBD |
+| Fully reviewed | ⬜ |
 
 ---
 
-### Towards Better Understanding of Black-box Auto-Tuning:
-### A Comparative Analysis for Storage Systems
+# 7. Towards Better Understanding of Black-box Auto-Tuning:
+## A Comparative Analysis for Storage Systems
 
 **Year:** 2018
 
-**Approach:**
-Investigated several optimization techniques, including AI/genetic
-algorithms, for storage-system parameter tuning.
+### Current Notes
 
-**Why it matters:**
-Closely related application of learning/optimization to storage systems.
+The study examines several optimization techniques, including AI/genetic approaches, for storage-system parameter tuning.
 
-**Difference from our project:**
-The work focuses more broadly on storage-system parameter tuning rather
-than specifically learning HDD request ordering.
+### Why It Matters
+
+This is related to our project because it applies learning/optimization techniques to storage-system performance.
+
+### Difference
+
+The research appears to focus on broader storage-system parameter tuning rather than specifically learning HDD request ordering.
+
+### Review Status
+
+| Question | Answer |
+|---|---|
+| Optimization techniques | Multiple |
+| Disk scheduling specifically | Not primary focus |
+| Metrics | TBD |
+| Tools | TBD |
+| Main findings | TBD |
+| Fully reviewed | ⬜ |
 
 ---
 
-## Literature Comparison Table
+# Research Timeline
 
-| Paper | Year | Approach | Scheduling Modification | Metrics | Simulator/Tools | Difference From Our Project |
-|---|---:|---|---|---|---|---|
-| A Survey on AI for Storage | 2022 | Survey | N/A | TODO | TODO | Provides background |
-| Towards ML-Based I/O Scheduling | 2025? | NN / workload classification | Scheduler selection + latency prediction | Throughput | TODO | DQN directly learns ordering |
-| Genetic Based Disk Scheduling | 2011 | GP + NN | Request scheduling | Makespan | TODO | DQN + DiskSim |
-| NEAT | 2002 | Neuroevolution | General NN optimization | N/A | N/A | Original project direction |
-| Self-Learning Disk Scheduling | 2009 | TODO | Learning-based scheduling | TODO | TODO | Determine after reading |
-| Disk Seek Optimization Using NN | 2002 | NN | Select existing scheduler | TODO | TODO | DQN generates ordering |
-| Black-box Auto-Tuning | 2018 | Multiple optimization algorithms | Storage parameter tuning | TODO | TODO | We focus on request scheduling |
+As papers are reviewed, we can develop a timeline such as:
 
-## Current Research Gap / Motivation
+| Period | Research Direction | Example |
+|---|---|---|
+| Early 2000s | Neural networks + disk scheduling | NN scheduler selection |
+| Late 2000s | Self-learning scheduling | Self-Learning Disk Scheduling |
+| Early 2010s | Evolutionary optimization | Genetic-based scheduling |
+| Late 2010s | Storage auto-tuning | Black-box optimization |
+| 2020s | Broader AI/storage + modern ML | AI for Storage survey / ML I/O scheduling |
+| **2026 Project** | **Reinforcement learning** | **DQN request ordering + DiskSim** |
 
-Current working hypothesis:
+This timeline is preliminary and should be updated as papers are fully reviewed.
 
-Previous research has applied machine learning to areas including:
+---
 
-- Selecting existing scheduling algorithms
+# Current Working Research Gap
+
+### What Previous Work Appears to Have Explored
+
+- Selecting existing scheduling algorithms using neural networks
 - Predicting request latency
 - Genetic/evolutionary scheduling
-- Storage-system parameter tuning
+- Self-learning scheduling
+- Storage-system parameter optimization
 
-Our project investigates whether a DQN can instead learn request-ordering
-decisions from simulated disk-performance feedback.
+### What We Are Investigating
 
-This statement is currently a working hypothesis and should be refined
-after completing the literature review.
+> Whether a Deep Q-Network can learn disk I/O request-ordering decisions using performance feedback from DiskSim.
 
-## TODO
+⚠️ **This is currently a working research gap, not a final novelty claim.**
 
-- [ ] Verify publication information for each paper
-- [ ] Complete missing metrics
-- [ ] Identify simulator/hardware used by each study
-- [ ] Record dataset/workload design
-- [ ] Record main findings
-- [ ] Identify limitations stated by authors
-- [ ] Search references for additional related work
-- [ ] Finalize research gap only after literature review is complete
+It should only become part of the final paper after the literature review confirms that closely equivalent work has not already addressed it.
+
+---
+
+# Literature Review Checklist
+
+| Task | Status |
+|---|---|
+| Verify publication information | ⬜ |
+| Read each paper beyond abstract/introduction | ⬜ |
+| Record ML/AI technique | ⬜ |
+| Record scheduling modification | ⬜ |
+| Record workload/dataset | ⬜ |
+| Record evaluation metrics | ⬜ |
+| Record simulator/hardware | ⬜ |
+| Record baselines | ⬜ |
+| Record main findings | ⬜ |
+| Record limitations | ⬜ |
+| Search references for additional papers | ⬜ |
+| Finalize research gap | ⬜ |
+
+---
+
+# References / Reading List
+
+Add the team's paper links and formal citations here as they are verified.
+
+When adding a paper, also update the **Literature Matrix** at the top of this document.

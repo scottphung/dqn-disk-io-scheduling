@@ -1,193 +1,214 @@
 # Experiment Ideas
 
-This document contains possible experiments.
+This document tracks possible experiments for the project.
 
-Ideas listed here are NOT automatically part of the required project scope.
-Experiments should only move into implementation after team discussion.
+> **Important:** An experiment appearing here does not mean it is required.  
+> Our priority is getting the minimum DQN experiment working first.
 
 ---
 
-# Minimum Experiment
+## Experiment Overview
 
-## DQN vs Traditional Scheduling
+| Priority | Experiment | Research Question | Status |
+|---|---|---|---|
+| 🔴 **Required** | DQN vs FCFS vs SSTF | Can DQN learn request ordering that reduces simulated batch completion time? | Planned |
+| 🟡 Optional | Different Workload Patterns | Does DQN performance change with request locality? | Idea |
+| 🟡 Optional | Generalization | Does the trained DQN work on unseen workloads? | Planned |
+| 🟡 Optional | Different Batch Sizes | How does performance change with batch size? | Idea |
+| 🟢 Future | DQN vs NEAT | How does RL compare with neuroevolution? | Future |
+| 🟢 Future | Interactive DQN ↔ DiskSim | Does making decisions using updated disk state improve scheduling? | Future |
+
+---
+
+# 1. DQN vs Traditional Scheduling
+
+**Priority:** 🔴 Required
 
 ### Research Question
 
-Can a DQN learn a disk I/O request-ordering strategy that produces
-measurable differences in simulated batch completion time compared with
-traditional scheduling algorithms?
+Can a DQN learn a disk I/O request-ordering strategy that produces measurable differences in simulated batch completion time compared with traditional scheduling algorithms?
 
 ### Algorithms
 
-- DQN
-- FCFS
-- SSTF
+| Scheduler | Description |
+|---|---|
+| DQN | Learned request-ordering policy |
+| FCFS | Requests serviced in arrival order |
+| SSTF | Request selected based on shortest seek-distance criterion |
 
-### Experimental Control
+### Experimental Controls
 
-Each algorithm should receive:
+All methods should use:
 
-- The same workload
-- The same simulated disk
-- The same DiskSim configuration
-- The same relevant initial conditions
+- Same workload
+- Same simulated HDD
+- Same DiskSim configuration
+- Same relevant initial conditions
 
-### Primary Metric
+### Metrics
 
-- Batch completion time
-
-### Possible Additional Metrics
-
-- Throughput
-- Mean request response time
-- Tail response time
-- Training time
-- Scheduler/model inference overhead
-
-These are optional until the team decides which DiskSim statistics are
-appropriate.
+| Metric | Priority |
+|---|---|
+| Batch completion time | **Primary** |
+| Throughput | Optional |
+| Mean response time | Optional |
+| Tail response time | Optional |
+| Model inference overhead | Optional |
 
 ---
 
-# Experiment Idea 1 — Workload Patterns
+# 2. Workload Pattern Experiment
 
-### Question
-
-Does DQN performance change depending on the spatial/locality pattern of
-the workload?
-
-Possible workloads:
-
-- Random requests
-- Clustered requests
-- Sequential/local requests
-
-Compare:
-
-    DQN
-    FCFS
-    SSTF
-
-across each workload type.
-
----
-
-# Experiment Idea 2 — Generalization
-
-### Question
-
-Can a trained DQN perform effectively on workloads it did not see during
-training?
-
-Possible design:
-
-Training workloads
-        ↓
-Train DQN
-        ↓
-Freeze model
-        ↓
-Unseen test workloads
-        ↓
-Compare against FCFS/SSTF
-
-Training and final testing workloads must remain separate.
-
----
-
-# Experiment Idea 3 — Different Batch Sizes
-
-### Question
-
-How does scheduler performance change as the number of pending requests
-changes?
-
-Possible sizes:
-
-- Small
-- Medium
-- Large
-
-Exact batch sizes TBD.
-
-This experiment depends on whether the chosen DQN representation supports
-variable batch sizes.
-
----
-
-# Experiment Idea 4 — DQN vs NEAT
-
-### Status
-
-OPTIONAL / FUTURE WORK
+**Priority:** 🟡 Optional
 
 ### Research Question
 
-How does reinforcement-learning-based scheduling compare with an
-evolutionary neural-network approach?
+Does DQN performance change depending on workload locality?
+
+| Workload | Description |
+|---|---|
+| Random | Requests distributed across disk locations |
+| Clustered | Groups of requests located near one another |
+| Sequential / Local | Requests concentrated around sequential locations |
+
+Comparison:
+
+```text
+              Random
+             /
+DQN ─────── Clustered
+             \
+              Sequential
+
+vs.
+
+FCFS / SSTF
+```
+
+---
+
+# 3. Generalization Experiment
+
+**Priority:** 🟡 Recommended
+
+### Research Question
+
+Can the trained DQN perform effectively on workloads it did not encounter during training?
+
+```text
+Training Workloads
+        ↓
+     Train DQN
+        ↓
+    Freeze Model
+        ↓
+Unseen Test Workloads
+        ↓
+ DQN vs FCFS vs SSTF
+```
+
+### Rule
+
+> Final testing workloads must remain separate from DQN training.
+
+---
+
+# 4. Different Batch Sizes
+
+**Priority:** 🟡 Optional
+
+### Research Question
+
+How does scheduler performance change when the number of pending requests changes?
+
+| Batch | Size |
+|---|---|
+| Small | TBD |
+| Medium | TBD |
+| Large | TBD |
+
+This experiment depends on whether our DQN representation supports variable batch sizes.
+
+---
+
+# 5. DQN vs NEAT
+
+**Priority:** 🟢 Future Work
+
+### Research Question
+
+How does reinforcement-learning-based scheduling compare with neuroevolution?
 
 Possible comparison:
 
-    DQN
-     vs
-    NEAT
-     vs
-    FCFS / SSTF
+```text
+DQN ───┐
+NEAT ──┼──→ DiskSim → Performance
+FCFS ──┤
+SSTF ──┘
+```
 
-### Warning
+### Decision
 
-This significantly increases project scope and should not be attempted
-until the minimum DQN experiment works reliably.
+Do **not** implement this until the primary DQN experiment works.
+
+NEAT was part of the original project direction and remains useful as a possible extension.
 
 ---
 
-# Experiment Idea 5 — Request-by-Request DiskSim Interaction
+# 6. Interactive DQN ↔ DiskSim
 
-### Status
+**Priority:** 🟢 Advanced / Future Work
 
-OPTIONAL / ADVANCED
+### Current Approach
 
-Current proposed implementation:
+```text
+DQN
+ ↓
+Build complete order
+ ↓
+DiskSim
+ ↓
+Completion time
+```
 
-    DQN builds complete order
-            ↓
-         DiskSim
-            ↓
-      Batch completion time
+### Possible Advanced Approach
 
-Possible advanced implementation:
-
-    DQN selects request
-            ↓
-         DiskSim
-            ↓
-       Updated state
-            ↓
-    DQN selects next request
-            ↓
-           ...
+```text
+DQN chooses request
+        ↓
+DiskSim executes request
+        ↓
+Updated disk state
+        ↓
+DQN chooses next request
+        ↓
+       ...
+```
 
 ### Research Question
 
-Does allowing the DQN to make decisions using updated simulated disk
-state improve scheduling?
+Does providing updated simulated disk state after every scheduling decision improve the learned scheduler?
 
-This depends on whether DiskSim can practically be integrated at this
-level.
+### Dependency
+
+We must first determine whether DiskSim can practically support this interaction.
 
 ---
 
 # Experiment Checklist
 
-Before running a final experiment:
+Before declaring an experiment ready:
 
-- [ ] Research question clearly defined
-- [ ] Workloads fixed
-- [ ] Training/test split fixed
-- [ ] Disk configuration fixed
-- [ ] Baselines fixed
-- [ ] Metric definitions fixed
-- [ ] Random seeds recorded where applicable
-- [ ] DQN training configuration recorded
-- [ ] Raw results saved
-- [ ] Experiment reproducible
+| Requirement | Complete? |
+|---|---|
+| Research question defined | ⬜ |
+| Workloads fixed | ⬜ |
+| Training/test split fixed | ⬜ |
+| DiskSim configuration fixed | ⬜ |
+| Baselines fixed | ⬜ |
+| Metrics defined | ⬜ |
+| Random seeds recorded | ⬜ |
+| DQN configuration recorded | ⬜ |
+| Raw results preserved | ⬜ |
+| Experiment reproducible | ⬜ |
