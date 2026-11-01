@@ -60,6 +60,45 @@ Additional metrics may be added after further research.
 
 ---
 
+## Hyperparameter Sweep (`python/main.py`)
+
+`python/main.py` runs "current vs try" hyperparameter experiments for the DiskSim DQN, **one knob at a time**. The baseline uses the `examples/dqn_smoke.py` defaults, and every other experiment changes a single setting (train frequency, episodes, gamma, batch size, learning rate, target update, hold, final epsilon, replay size; optionally environment/reward options). Each run is a separate `dqn_smoke.py` process, and runs execute in parallel. At the end it compares each experiment to the baseline (95% CI verdict: better / worse / within noise) against the FCFS and SSTF baselines.
+
+### Usage
+
+```bash
+cd python
+python3 main.py --dry-run                      # show the plan and time estimate; runs nothing
+python3 main.py --groups gamma,batch --seeds 1 --episodes 200 --jobs 4   # quick partial test
+python3 main.py --episodes 1000 --seeds 3 --jobs 4                      # full sweep
+python3 main.py --name sweep1 --resume         # continue an interrupted sweep (skips finished runs)
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--groups` | all except `env` | Comma list: `train_every, episodes, gamma, batch, lr, tgt_update, hold, eps_end, replay, env` |
+| `--include-env` | off | Also run the environment-argument group |
+| `--episodes` | 1000 | Episodes per run |
+| `--seeds` | 3 | Training seeds per experiment (more = less noise, more time) |
+| `--jobs` | 4 | Parallel runs (1 CPU thread each) |
+| `--snap-every` | 100 | Snapshot interval (larger = faster) |
+| `--name`, `--resume` | timestamp | Name the sweep / resume it |
+
+Output goes to `python/results/sweeps/<name>/`: `results.csv`, `comparison.png`, and `runs/<label>_s<seed>/` (log, history CSV, weights, snapshots). Ctrl+C stops cleanly and still summarizes finished runs.
+
+### ⚠️ Warning: the full sweep takes hours
+
+The default full sweep is 23 experiments × 3 seeds = **69 training runs**. Rough estimates printed by `--dry-run` (based on ~6.3 min per 1000-episode baseline run with 4 jobs in parallel):
+
+| Configuration | Estimated wall-clock |
+|---|---|
+| Default (`--seeds 3 --jobs 4`) | **~2.5 hours** (~580 CPU-minutes) |
+| `--include-env --seeds 5 --jobs 6` | **~3 hours** (~1,060 CPU-minutes) |
+
+The `episodes=3000`/`5000` and `train_every=1` runs are the slowest (a single run can take 30+ minutes), and the sweep keeps all `--jobs` CPUs busy the whole time. Always run `--dry-run` first, start with a small subset (`--groups`, `--seeds 1`, fewer `--episodes`), and use `--resume` if interrupted. Estimates are approximate and depend on your hardware.
+
+---
+
 ## Project Timeline
 
 | Target | Milestone |

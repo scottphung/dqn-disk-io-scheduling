@@ -83,7 +83,7 @@ extern int libparamdebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 56 "libparam.y"
+#line 59 "libparam.y"
 
   double d;
   long i;

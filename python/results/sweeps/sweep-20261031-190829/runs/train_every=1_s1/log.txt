@@ -1,0 +1,13 @@
+run folder: /data/disksim/DiskSim/STABLE/DiskSim_Linux_Generic_2.01.016/python/results/sweeps/sweep-20261031-190829/runs/train_every=1_s1/dqn_1000ep_rew-queue_timex100_eps-h0.25d0.5e0.02_lr-0.0005to5e-05_g0.99_bs64_te1_tu1000_rc100k_mask1_s1_20261031-195448
+baselines (50 workloads): FCFS 298.1 ms, SSTF 41.0 ms
+ep    0 eps=1.0000 lr=5.0e-04 train mean response    248.0 ms  hangs so far 0  (0s)
+ep   25 eps=1.0000 lr=5.0e-04 train mean response    194.4 ms  hangs so far 0  (29s)
+ep   50 eps=1.0000 lr=5.0e-04 train mean response    199.1 ms  hangs so far 0  (59s)
+ep   75 eps=1.0000 lr=4.9e-04 train mean response    221.0 ms  hangs so far 0  (89s)
+  [snapshot ep 100] greedy eval 153.4 ms over 10 workloads (FCFS 337, SSTF 41)
+ep  100 eps=1.0000 lr=4.9e-04 train mean response    200.0 ms  hangs so far 0  (126s)
+ep  125 eps=1.0000 lr=4.8e-04 train mean response    484.2 ms  hangs so far 0  (158s)
+ep  150 eps=1.0000 lr=4.8e-04 train mean response    329.5 ms  hangs so far 0  (191s)
+ep  175 eps=1.0000 lr=4.7e-04 train mean response     72.1 ms  hangs so far 0  (224s)
+  [snapshot ep 200] greedy eval 128.6 ms over 10 workloads (FCFS 337, SSTF 41)
+ep  200 eps=1.0000 lr=4.6e-04 train mean response    530.2 ms  hangs so far 0  (265s)
