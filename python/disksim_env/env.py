@@ -22,7 +22,7 @@ from .dsim import DiskSim, DiskSimHang
 HERE = os.path.dirname(__file__)
 # Override with DISKSIM_PARFILE (a .parv whose model files sit beside it).
 DEFAULT_PARFILE = os.path.abspath(os.environ.get("DISKSIM_PARFILE") or
-                                  os.path.join(HERE, "..", "..", "STABLE/DiskSim_Linux_Generic_2.01.016", "valid", "cheetah4LP.parv"))
+                                  os.path.join(HERE, "..", "..", "valid", "cheetah4LP.parv"))
 F = 6  # features per slot
 
 

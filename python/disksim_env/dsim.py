@@ -4,7 +4,7 @@ import os
 from contextlib import contextmanager
 
 # Override with DISKSIM_LIB; the relative default works from <root>/python or <root>/gym.
-DEFAULT_LIB = os.environ.get("DISKSIM_LIB") or os.path.join(os.path.dirname(__file__), "..", "..", "STABLE/DiskSim_Linux_Generic_2.01.016", "src", "libdsim.so")
+DEFAULT_LIB = os.environ.get("DISKSIM_LIB") or os.path.join(os.path.dirname(__file__), "..", "..", "src", "libdsim.so")
 
 
 class Obs(C.Structure):

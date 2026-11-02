@@ -21,7 +21,13 @@ a = ap.parse_args()
 
 ck = torch.load(a.checkpoint, weights_only=True)
 h = ck["hidden"]
-net = nn.Sequential(nn.Linear(ck["nin"], h), nn.ReLU(), nn.Linear(h, h), nn.ReLU(), nn.Linear(h, ck["nout"]))
+p = ck.get("train", {}).get("policy_dropout", 0.0)
+if "3.weight" in ck["state_dict"]:        # layout with Dropout layers (Linear at indices 0, 3, 6)
+    net = nn.Sequential(nn.Linear(ck["nin"], h), nn.ReLU(), nn.Dropout(p),
+                        nn.Linear(h, h), nn.ReLU(), nn.Dropout(p),
+                        nn.Linear(h, ck["nout"]))
+else:                                      # older checkpoints without Dropout (Linear at 0, 2, 4)
+    net = nn.Sequential(nn.Linear(ck["nin"], h), nn.ReLU(), nn.Linear(h, h), nn.ReLU(), nn.Linear(h, ck["nout"]))
 net.load_state_dict(ck["state_dict"]); net.eval()
 
 kw = dict(ck["env_kwargs"])
