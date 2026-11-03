@@ -53,7 +53,7 @@ def parse_args():
     g = ap.add_argument_group("run / environment")
     g.add_argument("--seed", type=int, default=0, help="agent seed (init, exploration, sampling) and training-workload seeds")
     g.add_argument("--no-mask", action="store_true", help="do not use the action mask")
-    g.add_argument("--reward-mode", default=None, choices=["response", "service", "queue_time"], help="environment reward (default: the env's)")
+    g.add_argument("--reward-mode", default="queue_time", choices=["response", "service", "queue_time"], help="environment reward")
     g.add_argument("--reward-scale", type=float, default=None, help="environment reward scale (default: the env's)")
     g.add_argument("--eval-episodes", type=int, default=10, help="workloads (seeds 1000..) for the FINAL greedy evaluation; more = less noise")
     g.add_argument("--snap-eval-episodes", type=int, default=10, help="workloads for each intermediate snapshot's evaluation (a prefix of the final set)")
@@ -81,10 +81,10 @@ USE_MASK = not A.no_mask
 
 # Per-run identity: TAG encodes the hyperparameters
 # RUN adds a timestamp so every run gets its own folder.
-TAG = (f"dqn_{EPISODES}ep_rew-{env.unwrapped.reward_mode}x{env.unwrapped.reward_scale:g}"
+TAG = (f"dqn_{EPISODES}ep_rew-x{env.unwrapped.reward_scale:g}"
        f"_eps-h{A.hold:g}d{A.decay:g}_wd{A.weight_decay:g}_e{A.eps_end:g}_lr-{A.lr0:g}to{A.lr1:g}"
        f"_g{A.gamma:g}_bs{A.batch}_te{A.train_every}_tu{A.tgt_update}_rc{A.replay_cap // 1000}k"
-       f"_mask{int(USE_MASK)}_s{A.seed}_optim{A.optim.__name__}_pdrop{A.policy_dropout}")
+       f"_mask{int(USE_MASK)}_s{A.seed}_pdrop{A.policy_dropout}")
 
 OUT = os.path.abspath(A.out_dir)
 RUN = f"{TAG}_{time.strftime('%Y%m%d-%H%M%S')}"
