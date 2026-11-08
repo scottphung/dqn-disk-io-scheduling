@@ -3,6 +3,7 @@ import math
 import numpy as np
 import os
 import torch
+import torch.nn as nn
 
 import matplotlib
 matplotlib.use("Agg")
@@ -19,13 +20,103 @@ OPTIMIZERS = {
     "adagrad": torch.optim.Adagrad,
     "nadam":   torch.optim.NAdam,
 }
+ACT = {
+    "relu": torch.nn.ReLU,
+    "tanh": torch.nn.Tanh,
+    "sig": torch.nn.Sigmoid,
+    "sigmoid": torch.nn.Sigmoid,
+    "celu": torch.nn.CELU,
+    "selu": torch.nn.SELU,
+    "elu": torch.nn.ELU,
+    "leakyrelu": torch.nn.LeakyReLU,
+    "prelu": torch.nn.PReLU,
+    "rrelu": torch.nn.RReLU,
+    "relu6": torch.nn.ReLU6,
+    "gelu": torch.nn.GELU,
+    "silu": torch.nn.SiLU,
+    "mish": torch.nn.Mish,
+    "glu": torch.nn.GLU
+}
+# Which init suits which activation ("auto"): He for ReLU-like, LeCun for SELU, Xavier for saturating/gated.
+WINIT_AUTO = {
+    "relu": "he", "leakyrelu": "he", "prelu": "he", "rrelu": "he", "relu6": "he",
+    "gelu": "he", "silu": "he", "mish": "he", "elu": "he", "celu": "he",
+    "selu": "lecun",
+    "tanh": "xavier", "sig": "xavier", "sigmoid": "xavier", "glu": "xavier",
+}
+WINIT = ("auto", "he", "lecun", "xavier", "default")
 NEG = -1e9
 HIST = []                                             
-EVAL_HIST = []                                       # eval_hist: (episodes_done, greedy mean ms)
-LAST = {}                                            # LAST: last snapshot's results
+EVAL_HIST = []  # eval_hist: (episodes_done, greedy mean ms)
+LAST = {}       # LAST: last snapshot's results
+
+
+def activation(act):
+    try:
+        return ACT[act.lower()]
+    except KeyError:
+        raise argparse.ArgumentTypeError(
+            f"unknown activation function {act!r}; choose from {', '.join(ACT)}")
+
 
 def atomic(write, path): 
-    write(path + ".tmp"); os.replace(path + ".tmp", path)           # a crash mid-save never corrupts the last file
+    write(path + ".tmp"); os.replace(path + ".tmp", path)  # a crash mid-save never corrupts the last file
+
+
+def build_mlp(nin, nout, sizes, act, dropout=0.0):
+    """Linear -> activation -> Dropout per hidden layer, then a linear output layer."""
+    layers, prev = [], nin
+    for h in sizes:
+        # GLU halves its input width, so the Linear must produce 2*h to leave h features for the next layer
+        layers += [nn.Linear(prev, h * 2 if act is nn.GLU else h), act(), nn.Dropout(dropout)]
+        prev = h
+    return nn.Sequential(*layers, nn.Linear(prev, nout))
+
+
+def winit(s):
+    """argparse type: validate the weight-init strategy name."""
+    s = str(s).lower()
+    if s not in WINIT:
+        raise argparse.ArgumentTypeError(f"unknown winit {s!r}; choose from {', '.join(WINIT)}")
+    return s
+
+
+def resolve_winit(strategy, act):
+    """'auto' -> the init matching activation class `act`; otherwise the strategy unchanged."""
+    if strategy != "auto":
+        return strategy
+    name = next((k for k, v in ACT.items() if v is act), None)
+    return WINIT_AUTO.get(name, "default")
+
+
+def init_weights(net, strategy, act):
+    """Initialize every nn.Linear in `net` (biases zeroed). 'default' keeps PyTorch's own init."""
+    strategy = resolve_winit(strategy, act)
+    def _init(m):
+        if not isinstance(m, nn.Linear):
+            return
+        if strategy == "he":
+            nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="relu")
+        elif strategy == "lecun":
+            nn.init.kaiming_normal_(m.weight, mode="fan_in", nonlinearity="linear")
+        elif strategy == "xavier":
+            nn.init.xavier_uniform_(m.weight)
+        else:
+            return
+        nn.init.zeros_(m.bias)
+    net.apply(_init)
+    return strategy
+
+
+def hidden_sizes(s):
+    """argparse type: '128,64,32' -> [128, 64, 32] (one entry per hidden layer)."""
+    try:
+        sizes = [int(x) for x in str(s).split(",") if x.strip()]
+    except ValueError:
+        sizes = []
+    if not sizes or any(n < 1 for n in sizes):
+        raise argparse.ArgumentTypeError(f"{s!r}: expected comma-separated positive ints, e.g. 128,64,32")
+    return sizes
 
 
 def greedy(obs, net, use_mask, mask=None, rng=None):
@@ -124,12 +215,13 @@ def save_weights(env, net, nin, nout, use_mask, tag, run, plain, args, run_dir, 
     e = env.unwrapped
     atomic(lambda f: torch.save({
         "state_dict": net.state_dict(), "episodes_done": ep_done,
-        "nin": int(nin), "nout": int(nout), "hidden": 128, "use_mask": use_mask, "tag": tag, "run": run,
+        "nin": int(nin), "nout": int(nout), "hidden": list(args.hidden_sizes), "use_mask": use_mask, "tag": tag, "run": run,
         "env_kwargs": plain(dict(queue_slots=e.K, episode_requests=e.N, mean_interarrival_ms=e.mean_ia,
                            read_fraction=e.read_frac, sizes=list(e.sizes), reward_mode=e.reward_mode,
                            reward_scale=e.reward_scale, invalid_penalty=e.invalid_penalty,
                            max_consecutive_invalid=e.max_invalid, wait_scale_ms=e.wait_scale)),
         "train": plain(vars(args)),
+        "activation": args.activation.__name__
     }, f), os.path.join(run_dir, f"ep{ep_done:04d}.pt"))
 
 

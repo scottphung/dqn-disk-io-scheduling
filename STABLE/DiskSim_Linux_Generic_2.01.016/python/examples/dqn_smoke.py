@@ -15,7 +15,12 @@ import numpy as np, torch, torch.nn as nn, gymnasium as gym
 from baselines import fcfs, sstf, evaluate
 
 
-from utils import (atomic, 
+from utils import (activation,
+                   atomic, 
+                   build_mlp, 
+                   init_weights,
+                   winit,
+                   hidden_sizes, 
                    last_train_mean,
                    ms,
                    optimizer, 
@@ -29,38 +34,78 @@ from utils import (atomic,
 
 
 def parse_args():
+    # ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # ap.add_argument("episodes", nargs="?", type=int, default=50, help="training episodes (positional, or use --episodes)")
+    # ap.add_argument("--episodes", dest="episodes_opt", type=int, default=None, help="same as the positional episodes")
+    # g = ap.add_argument_group("exploration (epsilon: 1.0 for HOLD, linear decay over DECAY, then EPS_END)")
+    # g.add_argument("--hold", type=float, default=0.25, help="fraction of episodes at epsilon=1.0")
+    # g.add_argument("--decay", type=float, default=0.50, help="fraction of episodes spent decaying epsilon")
+    # g.add_argument("--eps-end", type=float, default=0.02, help="final epsilon")
+    # g = ap.add_argument_group("optimisation")
+    # g.add_argument("--lr0", type=float, default=5e-4, help="learning rate at the start (cosine decay)")
+    # g.add_argument("--lr1", type=float, default=5e-5, help="learning rate at the end")
+    # g.add_argument("--weight-decay", type=float, default=0.0, help="L2 weight decay for the optimizer")
+    # g.add_argument("--winit", type=str, default="he", help="weight initialization strategy")
+    # g.add_argument("--optim", type=optimizer, default=torch.optim.AdamW, help="optimizer for the network")
+    # g.add_argument("--momentum", type=float, default=0.9, help="Momentum for SGD optimizer, ignored otherwise")
+    # g.add_argument("--policy-dropout", type=float, default=0.0, help="Dropout rate for the policy network")
+    # g.add_argument("--gamma", type=float, default=0.99, help="discount factor")
+    # g.add_argument("--batch", type=int, default=64, help="minibatch size")
+    # g.add_argument("--train-every", type=int, default=4, help="one gradient step every N environment steps")
+    # g.add_argument("--warmup", type=int, default=1000, help="transitions in the buffer before training starts")
+    # g.add_argument("--tgt-update", type=int, default=1000, help="copy online -> target network every N environment steps")
+    # g.add_argument("--replay-cap", type=int, default=100_000, help="replay buffer capacity (transitions)")
+    # g.add_argument("--steps", type=int, default=1000, help="initial value of the global step counter (shifts the update cadence)")
+    # g.add_argument("--hidden-sizes", type=hidden_sizes, default=[128, 128], metavar="N[,N...]",
+    #                help="neurons per MLP hidden layer, comma-separated; the list length is the number of hidden layers (e.g. 256,128,64)")
+    # g.add_argument("--activation", type=activation, default="relu", help="Activation function for MLPs")
+    # g = ap.add_argument_group("run / environment")
+    # g.add_argument("--seed", type=int, default=0, help="agent seed (init, exploration, sampling) and training-workload seeds")
+    # g.add_argument("--no-mask", action="store_true", help="do not use the action mask")
+    # g.add_argument("--reward-mode", default="queue_time", choices=["response", "service", "queue_time"], help="environment reward")
+    # g.add_argument("--reward-scale", type=float, default=None, help="environment reward scale (default: the env's)")
+    # g.add_argument("--eval-episodes", type=int, default=10, help="workloads (seeds 1000..) for the FINAL greedy evaluation; more = less noise")
+    # g.add_argument("--snap-eval-episodes", type=int, default=10, help="workloads for each intermediate snapshot's evaluation (a prefix of the final set)")
+    # g.add_argument("--recycle-every", type=int, default=250, help="replace the DiskSim worker process every N resets (DiskSim leaks ~0.5 MB per reset); 0 = run in-process")
+    # g.add_argument("--snap-every", type=int, default=25, help="save PNG + weights (and run a greedy eval) every N episodes")
+    # g.add_argument("--out-dir", default=os.path.join(HERE, "..", "results"), help="where runs are written")
+    # g.add_argument("--threads", type=int, default=None, help="torch CPU threads (1 is best when running several jobs)")
+ 
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument("episodes", nargs="?", type=int, default=50, help="training episodes (positional, or use --episodes)")
+    ap.add_argument("episodes", nargs="?", type=int, default=2000, help="training episodes (positional, or use --episodes)")
     ap.add_argument("--episodes", dest="episodes_opt", type=int, default=None, help="same as the positional episodes")
     g = ap.add_argument_group("exploration (epsilon: 1.0 for HOLD, linear decay over DECAY, then EPS_END)")
-    g.add_argument("--hold", type=float, default=0.25, help="fraction of episodes at epsilon=1.0")
-    g.add_argument("--decay", type=float, default=0.50, help="fraction of episodes spent decaying epsilon")
+    g.add_argument("--hold", type=float, default=0.35, help="fraction of episodes at epsilon=1.0")
+    g.add_argument("--decay", type=float, default=0.65, help="fraction of episodes spent decaying epsilon")
     g.add_argument("--eps-end", type=float, default=0.02, help="final epsilon")
     g = ap.add_argument_group("optimisation")
-    g.add_argument("--lr0", type=float, default=5e-4, help="learning rate at the start (cosine decay)")
-    g.add_argument("--lr1", type=float, default=5e-5, help="learning rate at the end")
-    g.add_argument("--weight-decay", type=float, default=0.0, help="L2 weight decay for the optimizer")
+    g.add_argument("--lr0", type=float, default=8e-4, help="learning rate at the start (cosine decay)")
+    g.add_argument("--lr1", type=float, default=8e-5, help="learning rate at the end")
+    g.add_argument("--weight-decay", type=float, default=1e-3, help="L2 weight decay for the optimizer")
+    g.add_argument("--winit", type=winit, default="auto", help="weight init: auto (pick by activation), he, lecun, xavier, default (PyTorch)")
     g.add_argument("--optim", type=optimizer, default=torch.optim.AdamW, help="optimizer for the network")
-    g.add_argument("--momentum", type=float, default=0.9, help="Momentum for SGD optimizer, ignored otherwise")
     g.add_argument("--policy-dropout", type=float, default=0.0, help="Dropout rate for the policy network")
     g.add_argument("--gamma", type=float, default=0.99, help="discount factor")
-    g.add_argument("--batch", type=int, default=64, help="minibatch size")
+    g.add_argument("--batch", type=int, default=384, help="minibatch size")
     g.add_argument("--train-every", type=int, default=4, help="one gradient step every N environment steps")
     g.add_argument("--warmup", type=int, default=1000, help="transitions in the buffer before training starts")
-    g.add_argument("--tgt-update", type=int, default=1000, help="copy online -> target network every N environment steps")
-    g.add_argument("--replay-cap", type=int, default=100_000, help="replay buffer capacity (transitions)")
+    g.add_argument("--tgt-update", type=int, default=2000, help="copy online -> target network every N environment steps")
+    g.add_argument("--replay-cap", type=int, default=500_000, help="replay buffer capacity (transitions)")
     g.add_argument("--steps", type=int, default=1000, help="initial value of the global step counter (shifts the update cadence)")
+    g.add_argument("--hidden-sizes", type=hidden_sizes, default=[196], metavar="N[,N...]",
+                   help="neurons per MLP hidden layer, comma-separated; the list length is the number of hidden layers (e.g. 256,128,64)")
+    g.add_argument("--activation", type=activation, default="selu", help="Activation function for MLPs")
     g = ap.add_argument_group("run / environment")
     g.add_argument("--seed", type=int, default=0, help="agent seed (init, exploration, sampling) and training-workload seeds")
     g.add_argument("--no-mask", action="store_true", help="do not use the action mask")
     g.add_argument("--reward-mode", default="queue_time", choices=["response", "service", "queue_time"], help="environment reward")
-    g.add_argument("--reward-scale", type=float, default=None, help="environment reward scale (default: the env's)")
-    g.add_argument("--eval-episodes", type=int, default=10, help="workloads (seeds 1000..) for the FINAL greedy evaluation; more = less noise")
+    g.add_argument("--reward-scale", type=float, default=250, help="environment reward scale (default: the env's)")
+    g.add_argument("--eval-episodes", type=int, default=100, help="workloads (seeds 1000..) for the FINAL greedy evaluation; more = less noise")
     g.add_argument("--snap-eval-episodes", type=int, default=10, help="workloads for each intermediate snapshot's evaluation (a prefix of the final set)")
     g.add_argument("--recycle-every", type=int, default=250, help="replace the DiskSim worker process every N resets (DiskSim leaks ~0.5 MB per reset); 0 = run in-process")
     g.add_argument("--snap-every", type=int, default=25, help="save PNG + weights (and run a greedy eval) every N episodes")
     g.add_argument("--out-dir", default=os.path.join(HERE, "..", "results"), help="where runs are written")
-    g.add_argument("--threads", type=int, default=None, help="torch CPU threads (1 is best when running several jobs)")
+    g.add_argument("--threads", type=int, default=None, help="torch CPU threads (1 is best when running several jobs)")   
     return ap.parse_args()
 
 
@@ -81,7 +126,7 @@ USE_MASK = not A.no_mask
 
 # Per-run identity: TAG encodes the hyperparameters
 # RUN adds a timestamp so every run gets its own folder.
-TAG = (f"dqn_{EPISODES}ep_rew-x{env.unwrapped.reward_scale:g}"
+TAG = (f"dqn_{EPISODES}ep_rew-x{env.unwrapped.reward_scale:g}_arch[{A.hidden_sizes}]_act{A.activation.__name__}"
        f"_eps-h{A.hold:g}d{A.decay:g}_wd{A.weight_decay:g}_e{A.eps_end:g}_lr-{A.lr0:g}to{A.lr1:g}"
        f"_g{A.gamma:g}_bs{A.batch}_te{A.train_every}_tu{A.tgt_update}_rc{A.replay_cap // 1000}k"
        f"_mask{int(USE_MASK)}_s{A.seed}_pdrop{A.policy_dropout}")
@@ -102,15 +147,16 @@ if A.threads:
 
 # Policy network dims
 nin, nout = env.observation_space.shape[0], env.action_space.n
-mlp = lambda p=0.0: nn.Sequential(nn.Linear(nin, 128), nn.ReLU(), nn.Dropout(p),
-                                  nn.Linear(128, 128), nn.ReLU(), nn.Dropout(p),
-                                  nn.Linear(128, nout))
+mlp = lambda p=0.0: build_mlp(nin, nout, A.hidden_sizes, A.activation, p)
 torch.manual_seed(A.seed)
 random.seed(A.seed)
 np.random.seed(A.seed)
 
 # MLPs for policy and target network
 policy_network, target_network = mlp(A.policy_dropout), mlp(A.policy_dropout)
+WINIT_USED = init_weights(policy_network, A.winit, A.activation)   # target gets it via load_state_dict below
+print(f"weight init: {WINIT_USED} (requested {A.winit}, activation {A.activation.__name__})")
+
 target_network.load_state_dict(policy_network.state_dict())
 policy_network.train()
 target_network.eval()  # Targets must be deterministic or eval lasts forever

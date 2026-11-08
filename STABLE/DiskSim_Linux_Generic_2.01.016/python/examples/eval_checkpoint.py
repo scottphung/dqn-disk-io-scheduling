@@ -8,8 +8,8 @@ import sys, os, argparse
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, torch, torch.nn as nn, gymnasium as gym
-import disksim_env
 from baselines import fcfs, sstf, evaluate
+from utils import build_mlp, activation
 
 ap = argparse.ArgumentParser()
 ap.add_argument("checkpoint")
@@ -20,14 +20,15 @@ ap.add_argument("--recycle-every", type=int, default=250, help="replace the Disk
 a = ap.parse_args()
 
 ck = torch.load(a.checkpoint, weights_only=True)
+act = activation(ck.get("activation", "relu"))
 h = ck["hidden"]
+sizes = h if isinstance(h, list) else [h, h]   # older checkpoints stored one width for two layers
 p = ck.get("train", {}).get("policy_dropout", 0.0)
-if "3.weight" in ck["state_dict"]:        # layout with Dropout layers (Linear at indices 0, 3, 6)
-    net = nn.Sequential(nn.Linear(ck["nin"], h), nn.ReLU(), nn.Dropout(p),
-                        nn.Linear(h, h), nn.ReLU(), nn.Dropout(p),
-                        nn.Linear(h, ck["nout"]))
+if "3.weight" in ck["state_dict"] or len(sizes) != 2:   # layout with Dropout layers (Linear at 0, 3, 6, ...)
+    net = build_mlp(ck["nin"], ck["nout"], sizes, act, p)
 else:                                      # older checkpoints without Dropout (Linear at 0, 2, 4)
-    net = nn.Sequential(nn.Linear(ck["nin"], h), nn.ReLU(), nn.Linear(h, h), nn.ReLU(), nn.Linear(h, ck["nout"]))
+    h0, h1 = sizes
+    net = nn.Sequential(nn.Linear(ck["nin"], h0), nn.ReLU(), nn.Linear(h0, h1), nn.ReLU(), nn.Linear(h1, ck["nout"]))
 net.load_state_dict(ck["state_dict"]); net.eval()
 
 kw = dict(ck["env_kwargs"])

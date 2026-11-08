@@ -1,4 +1,132 @@
 #!/usr/bin/env python3
+
+# Failed experiments (clearly poorer results or superfluous):
+    # ("layers", {"hidden_sizes": "256,96"}),
+    # ("layers", {"hidden_sizes": "32,256,32"}),
+    # ("layers", {"hidden_sizes": "32,64,256,512,1024,4096,64"}),
+    # ("layers", {"hidden_sizes": "1024,4096,1024"}),
+    # ("layers", {"hidden_sizes": "1024"}),
+    # ("layers", {"hidden_sizes": "256,128,128,64"}),
+    # ("layers", {"hidden_sizes": "128,64,64,32"}),
+    # ("layers", {"hidden_sizes": "512,256,256,128"}),
+    # ("layers", {"hidden_sizes": "512,256,256,128,128,64"}),
+    # ("activation", {"activation": "tanh"}),
+    # ("activation", {"activation": "sig"}), $
+    # ("layers", {"hidden_sizes": "96,96"}),
+    # ("layers", {"hidden_sizes": "64,64"}),
+    # ("layers", {"hidden_sizes": "256,128,64"}),
+    # ("layers", {"hidden_sizes": "64"}), #
+    # ("layers", {"hidden_sizes": "128,96,64"}),
+    # ("layers", {"hidden_sizes": "96"}),
+    # ("layers", {"hidden_sizes": "64,128"}),
+    # ("layers", {"hidden_sizes": "64,128,64"}),
+    # ("layers", {"hidden_sizes": "96,128,256,64"}),
+    # ("layers", {"hidden_sizes": "196,196"}),
+    # ("layers", {"hidden_sizes": "256,256"}),
+    # ("layers", {"hidden_sizes": "128,64"}),
+    # ("layers", {"hidden_sizes": "64,64,64"}),
+    # ("layers", {"hidden_sizes": "100"}),
+    # ("layers", {"hidden_sizes": "32"}),
+    # ("layers", {"hidden_sizes": "96,32"}),
+    # ("activation", {"activation": "celu"}),
+    # ("activation", {"activation": "elu"}),
+    # ("activation", {"activation": "silu"}),
+    # ("activation", {"activation": "mish"}),
+    # ("train_every", {"train_every": 6}),
+    # ("train_every", {"train_every": 1}),
+    # ("policy_dropout", {"policy_dropout": 0.05}),
+    # ("policy_dropout", {"policy_dropout": 0.10}),
+    # ("policy_dropout", {"policy_dropout": 0.15}),
+    # ("policy_dropout", {"policy_dropout": 0.20}),
+    # ("policy_dropout", {"policy_dropout": 0.50}), #
+    # ("policy_dropout", {"policy_dropout": 0.01}),
+    # ("policy_dropout", {"policy_dropout": 0.02}),
+    # ("policy_dropout", {"policy_dropout": 0.03}),
+    # ("policy_dropout", {"policy_dropout": 0.04}),
+    # ("lr", {"lr0": 1e-2, "lr1": 1e-3}),
+    # ("lr", {"lr0": 2.5e-4, "lr1": 5e-5}),
+    # ("lr", {"lr0": 1e-4, "lr1": 1e-6}), #
+    # ("lr", {"lr0": 3e-3, "lr1": 3e-4}),
+    # ("lr", {"lr0": 2e-3, "lr1": 2e-4}),
+    # ("lr", {"lr0": 1e-3, "lr1": 5e-4}),
+    # ("lr", {"lr0": 5e-4, "lr1": 1e-4}),
+    # ("lr", {"lr0": 5e-3, "lr1": 1e-4}),
+    # ("lr", {"lr0": 1e-2, "lr1": 1e-4}),
+    # ("lr", {"lr0": 1e-2, "lr1": 1e-5}),
+    # ("gamma", {"gamma": 0.95}),
+    # ("gamma", {"gamma": 0.90}),
+    # ("gamma", {"gamma": 0.85}),
+    # ("gamma", {"gamma": 0.80}), #
+    # ("gamma", {"gamma": 0.96}),
+    # ("gamma", {"gamma": 0.94}),
+    # ("gamma", {"gamma": 0.93}),
+    # ("wd", {"weight_decay": 1e-1}),
+    # ("wd", {"weight_decay": 5e-2}),
+    # ("wd", {"weight_decay": 5e-3}),
+    # ("wd", {"weight_decay": 3e-3}),
+    # ("wd", {"weight_decay": 2e-3}),
+    # ("wd", {"weight_decay": 9e-4}),
+    # ("wd", {"weight_decay": 8e-4}),
+    # ("wd", {"weight_decay": 7e-7}),
+    # ("wd", {"weight_decay": 5e-5}),
+    # ("wd", {"weight_decay": 1e-5}),
+    # ("wd", {"weight_decay": 5e-6}),
+    # ("wd", {"weight_decay": 1e-6}),
+    # ("optim", {"optim": "Adagrad"}),
+    # ("optim", {"optim": "SGD"}),
+    # ("tgt_update", {"tgt_update": 500}),
+    # ("tgt_update", {"tgt_update": 8000}), #
+    # ("tgt_update", {"tgt_update": 5000}),
+    # ("tgt_update", {"tgt_update": 2500}),
+    # ("tgt_update", {"tgt_update": 1500}),
+    # ("hold", {"hold": 0.40}),
+    # ("hold", {"hold": 0.05}),
+    # ("hold", {"hold": 0.10}),
+    # ("hold", {"hold": 0.15}),
+    # ("hold", {"hold": 0.20}),
+    # ("eps_end", {"eps_end": 0.10}),
+    # ("eps_end", {"eps_end": 0.0065}),
+    # ("eps_end", {"eps_end": 0.006}),
+    # ("eps_end", {"eps_end": 0.0055}),
+    # ("eps_end", {"eps_end": 0.004}),
+    # ("eps_end", {"eps_end": 0.0045}),
+    # ("eps_end", {"eps_end": 0.0035}),
+    # ("eps_end", {"eps_end": 0.003}),
+    # ("eps_end", {"eps_end": 0.0025}),
+    # ("eps_end", {"eps_end": 0.002}),
+    # ("replay", {"replay_cap": 300_000}),
+    # ("replay", {"replay_cap": 600_000}),
+    # ("replay", {"replay_cap": 800_000}), #
+    # ("replay", {"replay_cap": 400_000}),
+    # ("replay", {"replay_cap": 450_000}),
+    # ("replay", {"replay_cap": 550_000}),
+    # ("env", {"reward_scale": 10.0}),
+    # ("env", {"reward_scale": 5.0}),
+    # ("env", {"reward_scale": 15.0}), #
+    # ("env", {"reward_scale": 25.0}),
+    # ("env", {"reward_scale": 30.0}),
+    # ("env", {"reward_scale": 40.0}),
+    # ("env", {"reward_scale": 50.0}),
+    # ("env", {"reward_scale": 60.0}),
+    # ("env", {"reward_scale": 75.0}),
+    # ("env", {"reward_scale": 80.0}),
+    # ("env", {"reward_scale": 90.0}),
+    # ("env", {"reward_scale": 95.0}),
+    # ("env", {"reward_scale": 105.0}),
+    # ("env", {"reward_scale": 110.0}),
+    # ("env", {"reward_scale": 125.0}),
+    # ("env", {"reward_scale": 130.0}),
+    # ("env", {"reward_scale": 140.0}),
+    # ("env", {"reward_scale": 150.0}),
+    # ("env", {"reward_scale": 160.0}),
+    # ("env", {"reward_scale": 175.0}),
+    # ("env", {"reward_scale": 200.0}),
+    # ("env", {"reward_scale": 170.0}),
+    # ("env", {"reward_scale": 180.0}),
+    # ("env", {"reward_scale": 185.0}),
+    # ("env", {"reward_scale": 190.0}),
+    # ("env", {"reward_scale": 195.0}),
+
 """Run "current vs try" hyperparameter experiments for the DiskSim DQN, one knob at a time.
 
 Every experiment is the baseline (the "current" values) with ONE setting changed to its "try" value.
@@ -9,6 +137,13 @@ its memory leak don't matter, and runs execute in parallel (--jobs).
   python3 main.py --episodes 1000 --jobs 4       # run everything (one seed)
   python3 main.py --groups gamma,batch --seeds 3 # only some groups, 3 seeds each
   python3 main.py --name sweep1 --resume         # continue an interrupted sweep (skips finished runs)
+  python3 main.py --combo --groups lr,batch --dry-run   # combinations: every lr try x every batch try (plus the singles)
+  python3 main.py --combo --combo-max 200        # all group pairs, randomly sample 200 combinations
+  python3 main.py --combo-all --groups layers,lr,batch   # full factorial: one value from every listed group at once
+
+Default: one knob at a time. With --combo, every active experiment is also run together with every active
+experiment of each OTHER selected group (two knobs changed at once; same-group pairs are skipped because they
+set the same knob). The single-knob runs are included so each pair gets an interaction estimate.
 
 Results: results/sweeps/<name>/  ->  results.csv, comparison.png, runs/<label>_s<seed>/<run folder>/...
 """
@@ -17,147 +152,106 @@ import argparse, csv, glob, json, os, signal, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRAIN = os.path.join(HERE, "examples", "dqn_smoke.py")
 
-# (group, label, overrides).  Overrides use dqn_smoke.py option names with '_' for '-'.
+# (group, overrides).  The label / run-folder name is derived from the overrides.  Overrides use dqn_smoke.py option names with '_' for '-'.
 # "current" = dqn_smoke.py defaults; the baseline row runs those unchanged.
 EXPERIMENTS = [
-    ("baseline",    "baseline",             {}),
-    ("train_every", "train_every=6",        {"train_every": 6}),
-    ("train_every", "train_every=5",        {"train_every": 5}),
-    ("train_every", "train_every=3",        {"train_every": 3}),
-    ("train_every", "train_every=1",        {"train_every": 1}),
-    ("episodes",    "episodes=1500",        {"episodes": 1500}),
-    ("episodes",    "episodes=2000",        {"episodes": 2000}),
-    ("episodes",    "episodes=2500",        {"episodes": 2500}),
-    ("episodes",    "episodes=3000",        {"episodes": 3000}),
-    ("episodes",    "episodes=3500",        {"episodes": 3500}),
-    ("episodes",    "episodes=5000",        {"episodes": 5000}), #
-    ("episodes",    "episodes=1300",        {"episodes": 1300}),
-    ("episodes",    "episodes=1400",        {"episodes": 1400}),
-    ("episodes",    "episodes=1600",        {"episodes": 1600}),
-    ("episodes",    "episodes=1700",        {"episodes": 1700}),
-    ("gamma",       "gamma=1.00",           {"gamma": 1.00}),
-    ("gamma",       "gamma=0.95",           {"gamma": 0.95}),
-    ("gamma",       "gamma=0.90",           {"gamma": 0.90}),
-    ("gamma",       "gamma=0.85",           {"gamma": 0.85}),
-    ("gamma",       "gamma=0.80",           {"gamma": 0.80}), #
-    ("gamma",       "gamma=0.97",           {"gamma": 0.97}),
-    ("gamma",       "gamma=0.96",           {"gamma": 0.96}),
-    ("gamma",       "gamma=0.94",           {"gamma": 0.94}),
-    ("gamma",       "gamma=0.93",           {"gamma": 0.93}),
-    ("batch",       "batch=128",            {"batch": 128}),
-    ("batch",       "batch=256",            {"batch": 256}),
-    ("batch",       "batch=384",            {"batch": 384}),
-    ("batch",       "batch=512",            {"batch": 512}), #
-    ("batch",       "batch=200",            {"batch": 200}),
-    ("batch",       "batch=300",            {"batch": 300}),
-    ("lr",          "lr=1e-2to1e-3",        {"lr0": 1e-2, "lr1": 1e-3}),
-    ("lr",          "lr=1e-3to1e-4",        {"lr0": 1e-3, "lr1": 1e-4}),
-    ("lr",          "lr=5e-3to5e-4",        {"lr0": 5e-3, "lr1": 5e-4}),
-    ("lr",          "lr=2.5e-4to5e-5",      {"lr0": 2.5e-4, "lr1": 5e-5}),
-    ("lr",          "lr=1e-4to1e-6",        {"lr0": 1e-4, "lr1": 1e-6}), #
-    ("lr",          "lr=3e-3to3e-4",        {"lr0": 3e-3, "lr1": 3e-4}),
-    ("lr",          "lr=2e-3to2e-4",        {"lr0": 2e-3, "lr1": 2e-4}),
-    ("lr",          "lr=9e-4to9e-5",        {"lr0": 9e-4, "lr1": 9e-5}),
-    ("lr",          "lr=8e-4to8e-5",        {"lr0": 8e-4, "lr1": 8e-5}),
-    ("lr",          "lr=1e-3to5e-4",        {"lr0": 1e-3, "lr1": 5e-4}),
-    ("lr",          "lr=5e-4to1e-4",        {"lr0": 5e-4, "lr1": 1e-4}),
-    ("lr",          "lr=1e-3to1e-4",        {"lr0": 5e-3, "lr1": 1e-4}),
-    ("lr",          "lr=1e-3to1e-4",        {"lr0": 1e-3, "lr1": 1e-4}),
-    ("policy_dropout", "policy_dropout=0.05", {"policy_dropout": 0.05}),
-    ("policy_dropout", "policy_dropout=0.10", {"policy_dropout": 0.10}),
-    ("policy_dropout", "policy_dropout=0.15", {"policy_dropout": 0.15}),
-    ("policy_dropout", "policy_dropout=0.20", {"policy_dropout": 0.20}),
-    ("policy_dropout", "policy_dropout=0.50", {"policy_dropout": 0.50}), #
-    ("policy_dropout", "policy_dropout=0.01", {"policy_dropout": 0.01}),
-    ("policy_dropout", "policy_dropout=0.02", {"policy_dropout": 0.02}),
-    ("policy_dropout", "policy_dropout=0.03", {"policy_dropout": 0.03}),
-    ("policy_dropout", "policy_dropout=0.04", {"policy_dropout": 0.04}),
-    ("wd",          "wd=1e-1",              {"weight_decay": 1e-1}),
-    ("wd",          "wd=5e-2",              {"weight_decay": 5e-2}),
-    ("wd",          "wd=1e-2",              {"weight_decay": 1e-2}),
-    ("wd",          "wd=5e-3",              {"weight_decay": 5e-3}),
-    ("wd",          "wd=1e-3",              {"weight_decay": 1e-3}), #
-    ("wd",          "wd=3e-3",              {"weight_decay": 3e-3}),
-    ("wd",          "wd=2e-3",              {"weight_decay": 2e-3}),
-    ("wd",          "wd=9e-4",              {"weight_decay": 9e-4}),
-    ("wd",          "wd=8e-4",              {"weight_decay": 8e-4}),
-    ("wd",          "wd=7e-7",              {"weight_decay": 7e-7}),
-    ("optim",       "optim=Adagrad",        {"optim": "Adagrad"}),
-    ("optim",       "optim=SGD",            {"optim": "SGD"}),
-    ("optim",       "optim=Adam",           {"optim": "Adam"}),
-    ("optim",       "optim=NAdam",          {"optim": "NAdam"}),
-    ("tgt_update",  "tgt_update=500",       {"tgt_update": 500}),
-    ("tgt_update",  "tgt_update=2000",      {"tgt_update": 2000}),
-    ("tgt_update",  "tgt_update=3000",      {"tgt_update": 3000}),
-    ("tgt_update",  "tgt_update=5000",      {"tgt_update": 5000}),
-    ("tgt_update",  "tgt_update=8000",      {"tgt_update": 8000}), #
-    ("tgt_update",  "tgt_update=1500",      {"tgt_update": 1500}),
-    ("tgt_update",  "tgt_update=1700",      {"tgt_update": 1700}),
-    ("tgt_update",  "tgt_update=2200",      {"tgt_update": 2200}),
-    ("tgt_update",  "tgt_update=2500",      {"tgt_update": 2500}),
-    ("hold",        "hold=0.05",            {"hold": 0.05}),
-    ("hold",        "hold=0.10",            {"hold": 0.10}),
-    ("hold",        "hold=0.15",            {"hold": 0.15}),
-    ("hold",        "hold=0.20",            {"hold": 0.20}),
-    ("hold",        "hold=0.30",            {"hold": 0.30}), #
-    ("hold",        "hold=0.35",            {"hold": 0.35}),
-    ("hold",        "hold=0.40",            {"hold": 0.40}),
-    ("decay",       "decay=0.30",           {"decay": 0.30}),
-    ("decay",       "decay=0.65",           {"decay": 0.65}),
-    ("decay",       "decay=0.75",           {"decay": 0.75}),
-    ("eps_end",     "eps_end=0.10",         {"eps_end": 0.10}),
-    ("eps_end",     "eps_end=0.05",         {"eps_end": 0.05}),
-    ("eps_end",     "eps_end=0.02",         {"eps_end": 0.02}),
-    ("eps_end",     "eps_end=0.01",         {"eps_end": 0.01}),
-    ("eps_end",     "eps_end=0.005",        {"eps_end": 0.005}),
-    ("eps_end",     "eps_end=0.001",        {"eps_end": 0.001}), #
-    ("eps_end",     "eps_end=0.007",        {"eps_end": 0.007}),
-    ("eps_end",     "eps_end=0.0065",       {"eps_end": 0.0065}),
-    ("eps_end",     "eps_end=0.006",        {"eps_end": 0.006}),
-    ("eps_end",     "eps_end=0.0055",       {"eps_end": 0.0055}),
-    ("eps_end",     "eps_end=0.004",        {"eps_end": 0.004}),
-    ("eps_end",     "eps_end=0.0045",       {"eps_end": 0.0045}),
-    ("eps_end",     "eps_end=0.0035",       {"eps_end": 0.0035}),
-    ("eps_end",     "eps_end=0.003",        {"eps_end": 0.003}),
-    ("eps_end",     "eps_end=0.0025",       {"eps_end": 0.0025}),
-    ("eps_end",     "eps_end=0.002",        {"eps_end": 0.002}),
-    ("replay",      "replay_cap=300k",      {"replay_cap": 300_000}),
-    ("replay",      "replay_cap=500k",      {"replay_cap": 500_000}),
-    ("replay",      "replay_cap=600k",      {"replay_cap": 600_000}),
-    ("replay",      "replay_cap=800k",      {"replay_cap": 800_000}), #
-    ("replay",      "replay_cap=400k",      {"replay_cap": 400_000}),
-    ("replay",      "replay_cap=450k",      {"replay_cap": 450_000}),
-    ("replay",      "replay_cap=550k",      {"replay_cap": 550_000}),
+    ("baseline", {}),
+    # ("layers", {"hidden_sizes": "512"}),
+    # ("layers", {"hidden_sizes": "384"}),
+    # ("layers", {"hidden_sizes": "300"}),
+    # ("layers", {"hidden_sizes": "256"}),
+    # ("layers", {"hidden_sizes": "225"}),
+    # ("layers", {"hidden_sizes": "215"}),
+    # ("layers", {"hidden_sizes": "196"}),
+    # ("layers", {"hidden_sizes": "180"}),
+    # ("layers", {"hidden_sizes": "165"}),
+    # ("layers", {"hidden_sizes": "150"}),
+    # ("layers", {"hidden_sizes": "128"}),
+    # ("layers", {"hidden_sizes": "115"}),
+    ("layers", {"hidden_sizes": "96"}),  # Best
+    ("layers", {"hidden_sizes": "80"}),
+    ("layers", {"hidden_sizes": "64"}),
+    ("layers", {"hidden_sizes": "50"}),
+    ("layers", {"hidden_sizes": "64,64"}),
+    ("layers", {"hidden_sizes": "96,96"}),
+    ("layers", {"hidden_sizes": "64,32"}),
+
+    ("activation", {"activation": "selu"}),  # best
+    # ("activation", {"activation": "leakyrelu"}),
+    # ("activation", {"activation": "prelu"}),
+    # ("activation", {"activation": "rrelu"}),
+    # ("activation", {"activation": "relu6"}),
+    # ("activation", {"activation": "gelu"}),
+    # ("activation", {"activation": "glu"}),
+
+    # ("train_every", {"train_every": 5}),
+    # ("train_every", {"train_every": 3}),
+
+    # ("episodes", {"episodes": 1500}),
+    ("episodes", {"episodes": 2000}),  # best
+    # ("episodes", {"episodes": 2500}),
+    # ("episodes", {"episodes": 3000}),
+    # ("episodes", {"episodes": 3500}),
+    # ("episodes", {"episodes": 5000}), #
+    # ("episodes", {"episodes": 1300}),
+    # ("episodes", {"episodes": 1400}),
+    # ("episodes", {"episodes": 1600}),
+    # ("episodes", {"episodes": 1700}),
+
+    # ("gamma", {"gamma": 1.00}),
+    # ("gamma", {"gamma": 0.97}),
+
+    # ("batch", {"batch": 128}),
+    # ("batch", {"batch": 256}),
+    ("batch", {"batch": 384}),  # best
+    # ("batch", {"batch": 512}), #
+    # ("batch", {"batch": 200}),
+    # ("batch", {"batch": 300}),
+
+    # ("lr", {"lr0": 1e-3, "lr1": 1e-4}),
+    # ("lr", {"lr0": 5e-3, "lr1": 5e-4}),
+    # ("lr", {"lr0": 9e-4, "lr1": 9e-5}),
+    ("lr", {"lr0": 8e-4, "lr1": 8e-5}),  # best
+    # ("lr", {"lr0": 1e-3, "lr1": 1e-4}),
+
+    # ("policy_dropout", {"policy_dropout": 0.005}),
+    # ("policy_dropout", {"policy_dropout": 0.001}),
+
+    ("wd", {"weight_decay": 1e-3}),  # best
+    # ("wd", {"weight_decay": 7e-3}),
+    # ("wd", {"weight_decay": 5e-4}),
+
+    # ("optim", {"optim": "Adam"}),
+    # ("optim", {"optim": "NAdam"}),
+
+    ("tgt_update", {"tgt_update": 2000}),  # best
+    # ("tgt_update", {"tgt_update": 3000}),
+    # ("tgt_update", {"tgt_update": 1700}),
+    # ("tgt_update", {"tgt_update": 2200}),
+
+    # ("hold", {"hold": 0.30}), #
+    ("hold", {"hold": 0.35}),  # best
+
+    # ("decay", {"decay": 0.30}),
+    ("decay", {"decay": 0.65}),  # best
+    # ("decay", {"decay": 0.75}),
+
+    ("eps_end", {"eps_end": 0.05}),  # best
+    # ("eps_end", {"eps_end": 0.02}),
+    # ("eps_end", {"eps_end": 0.01}),
+    # ("eps_end", {"eps_end": 0.005}),
+    # ("eps_end", {"eps_end": 0.001}), #
+    # ("eps_end", {"eps_end": 0.007}),
+
+    ("replay", {"replay_cap": 500_000}),
+
     # environment constructor arguments (only with --groups env or --include-env)
-    # ("env",         "reward_mode=queue_time", {"reward_mode": "queue_time"}),
-    # ("env",         "reward_mode=response", {"reward_mode": "response"}),
-    # ("env",         "reward_scale=10",      {"reward_scale": 10.0}),
-    # ("env",         "reward_scale=5",       {"reward_scale": 5.0}),
-    # ("env",         "reward_scale=15",      {"reward_scale": 15.0}), #
-    # ("env",         "reward_scale=25",      {"reward_scale": 25.0}),
-    # ("env",         "reward_scale=30",      {"reward_scale": 30.0}),
-    # ("env",         "reward_scale=40",      {"reward_scale": 40.0}),
-    # ("env",         "reward_scale=50",      {"reward_scale": 50.0}),
-    # ("env",         "reward_scale=60",      {"reward_scale": 60.0}),
-    # ("env",         "reward_scale=75",      {"reward_scale": 75.0}),
-    # ("env",         "reward_scale=80",      {"reward_scale": 80.0}),
-    # ("env",         "reward_scale=90",      {"reward_scale": 90.0}),
-    # ("env",         "reward_scale=95",      {"reward_scale": 95.0}),
-    # ("env",         "reward_scale=105",     {"reward_scale": 105.0}),
-    # ("env",         "reward_scale=110",     {"reward_scale": 110.0}),
-    # ("env",         "reward_scale=125",     {"reward_scale": 125.0}),
-    # ("env",         "reward_scale=130",     {"reward_scale": 130.0}),
-    # ("env",         "reward_scale=140",     {"reward_scale": 140.0}),
-    # ("env",         "reward_scale=150",     {"reward_scale": 150.0}),
-    # ("env",         "reward_scale=160",     {"reward_scale": 160.0}),
-    # ("env",         "reward_scale=175",     {"reward_scale": 175.0}),
-    ("env",         "reward_scale=200",     {"reward_scale": 200.0}),
-    # ("env",         "reward_scale=170",     {"reward_scale": 170.0}),
-    # ("env",         "reward_scale=180",     {"reward_scale": 180.0}),
-    ("env",         "reward_scale=185",     {"reward_scale": 185.0}),
-    ("env",         "reward_scale=190",     {"reward_scale": 190.0}),
-    ("env",         "reward_scale=195",     {"reward_scale": 195.0}),
-    ("env",         "reward_scale=225",     {"reward_scale": 225.0}),
+    # ("env", {"reward_mode": "queue_time"}),
+    # ("env", {"reward_mode": "response"}),
+    # ("env", {"reward_scale": 225.0}),
+    ("env", {"reward_scale": 250.0}),  # best
+    # ("env", {"reward_scale": 275.0}),
+    # ("env", {"reward_scale": 300.0}),
 ]
 DEFAULT_GROUPS = [g for g in dict.fromkeys(e[0] for e in EXPERIMENTS) if g != "env"]
 
@@ -168,6 +262,10 @@ ap.add_argument("--seeds", type=int, default=3, help="agent (training) seeds per
 ap.add_argument("--jobs", type=int, default=4, help="parallel runs (each uses 1 CPU thread)")
 ap.add_argument("--groups", default=",".join(DEFAULT_GROUPS), help=f"comma list from: {','.join(dict.fromkeys(e[0] for e in EXPERIMENTS))}")
 ap.add_argument("--include-env", action="store_true", help="also run the environment-argument group")
+ap.add_argument("--combo", action="store_true", help="also run every pair of experiments from different groups (default: one knob at a time)")
+ap.add_argument("--combo-all", action="store_true", help="full factorial: every combination taking one experiment from EACH selected group at once (baseline + all combinations; no singles)")
+ap.add_argument("--combo-max", type=int, default=0, help="with --combo: randomly keep at most N pair runs (0 = all; the full cross-product can be thousands)")
+ap.add_argument("--combo-seed", type=int, default=0, help="with --combo-max: RNG seed for the sample")
 ap.add_argument("--eval-episodes", type=int, default=50, help="evaluation workloads for each run's FINAL greedy score")
 ap.add_argument("--snap-eval-episodes", type=int, default=10, help="workloads for intermediate snapshot evaluations (cheaper)")
 ap.add_argument("--snap-every", type=int, default=100, help="snapshot (PNG + weights + greedy eval) interval; larger = faster")
@@ -177,9 +275,47 @@ args = ap.parse_args()
 
 groups = {"baseline"} | set(args.groups.split(","))
 if args.include_env: groups.add("env")
-plan = [e for e in EXPERIMENTS if e[0] in groups]
 unknown = groups - {e[0] for e in EXPERIMENTS}
 if unknown: sys.exit(f"unknown group(s): {sorted(unknown)}")
+
+def label_of(over):
+    """Experiment label derived from the actual overrides (not the hand-written string in EXPERIMENTS),
+    so it is also the run-folder name and can never disagree with what is really run."""
+    return "+".join(f"{k}={v}" for k, v in sorted(over.items())) or "baseline"
+
+plan = [(g, label_of(o), o) for g, o in EXPERIMENTS if g in groups]
+dupes = sorted({l for l in (e[1] for e in plan)
+                if sum(1 for e in plan if e[1] == l) > 1})
+if dupes: sys.exit(f"duplicate experiments (identical overrides) in EXPERIMENTS: {dupes}")
+
+combo_parts = {}                    # pair label -> (label_a, label_b)
+if args.combo_all:
+    import itertools, random
+    bygroup = {}
+    for e in plan:
+        if e[0] != "baseline": bygroup.setdefault(e[0], []).append(e)
+    full = []
+    for combo in itertools.product(*bygroup.values()):
+        over = {}
+        for e in combo: over.update(e[2])
+        full.append(("combo-all:" + "+".join(bygroup), " + ".join(e[1] for e in combo), over))
+    if args.combo_max and len(full) > args.combo_max:
+        full = random.Random(args.combo_seed).sample(full, args.combo_max)
+    plan = [e for e in plan if e[0] == "baseline"] + full
+    print(f"--combo-all: {' x '.join(f'{g}({len(v)})' for g, v in bygroup.items())} = {len(full)} combinations per seed")
+elif args.combo:
+    import itertools, random
+    singles = [e for e in plan if e[0] != "baseline"]
+    pairs = []
+    for a, b in itertools.combinations(singles, 2):
+        if a[0] == b[0] or set(a[2]) & set(b[2]): continue          # same knob: not a combination
+        lab = f"{a[1]} + {b[1]}"
+        pairs.append((f"combo:{a[0]}+{b[0]}", lab, {**a[2], **b[2]})); combo_parts[lab] = (a[1], b[1])
+    if args.combo_max and len(pairs) > args.combo_max:
+        pairs = random.Random(args.combo_seed).sample(pairs, args.combo_max)
+        combo_parts = {l: combo_parts[l] for _, l, _ in pairs}
+    plan = plan + pairs
+    print(f"--combo: {len(singles)} single experiments -> {len(pairs)} pair runs per seed")
 
 name = args.name or time.strftime("sweep-%Y%m%d-%H%M%S")
 SWEEP = os.path.join(HERE, "results", "sweeps", name)
@@ -209,8 +345,9 @@ def finished(job):
 
 print(f"sweep '{name}': {len(plan)} experiments x {args.seeds} seed(s) = {len(jobs)} runs, {args.jobs} in parallel")
 print(f"{'group':12s} {'experiment':22s} episodes   change vs baseline")
-for g, l, o in plan:
+for g, l, o in (plan if len(plan) <= 150 else plan[:60]):
     print(f"{g:12s} {l:22s} {episodes_of(o):7d}   {o if o else '(current values)'}")
+if len(plan) > 150: print(f"... ({len(plan) - 60} more experiments not listed; full plan in plan.json)")
 MIN_PER_BASELINE = 11.0         # was 6.3 (18:16 sweep, 4 jobs in parallel); runs have since taken ~75% longer (6.3 * 1.75 ~= 11.0)
 work = sum(cost(j) for j in jobs) / 1000 * MIN_PER_BASELINE
 longest = max(cost(j) for j in jobs) / 1000 * MIN_PER_BASELINE
@@ -298,37 +435,52 @@ def compare(runs):
     return d, lo, hi, se, basis, verdict
 
 table = []
-for (g, l), runs in rows.items():
+for exp_no, ((g, l), runs) in enumerate(rows.items(), 1):
     v = np.array([r["final_greedy_ms"] for r in runs.values()])
     se_disp = float(v.std(ddof=1) / np.sqrt(len(v))) if len(v) > 1 else float(np.mean([r["final_greedy_se"] for r in runs.values()]))
     if (g, l) == BASEKEY:
         d = lo = hi = float("nan"); basis, verdict = "reference", "baseline"
     else:
         d, lo, hi, _, basis, verdict = compare(runs)
-    table.append(dict(group=g, experiment=l, seeds=len(v), final_greedy_ms=float(v.mean()), std_error=se_disp,
+    table.append(dict(exp=exp_no, group=g, experiment=l, seeds=len(v), final_greedy_ms=float(v.mean()), std_error=se_disp,
                       diff_vs_baseline_ms=d, ci95_lo=lo, ci95_hi=hi, verdict=verdict, basis=basis,
+                      interaction_ms=float("nan"),
                       last_train_ms=float(np.mean([r["last_train_mean_ms"] for r in runs.values()])),
                       hangs=sum(r["disksim_hangs"] for r in runs.values()),
                       minutes=float(np.mean([r["seconds"] for r in runs.values()])) / 60))
+if combo_parts:
+    # interaction = combo - (single_a + single_b - baseline): negative = the pair helps more than the sum of its parts
+    by_label = {d["experiment"]: d for d in table}
+    for d in table:
+        pa = combo_parts.get(d["experiment"])
+        if pa and pa[0] in by_label and pa[1] in by_label and bmean == bmean:
+            d["interaction_ms"] = d["final_greedy_ms"] - (by_label[pa[0]]["final_greedy_ms"] + by_label[pa[1]]["final_greedy_ms"] - bmean)
 table.sort(key=lambda d: d["final_greedy_ms"])
 fc = float(np.mean([r["fcfs_ms"] for rr in rows.values() for r in rr.values()]))
 ss = float(np.mean([r["sstf_ms"] for rr in rows.values() for r in rr.values()]))
 print(f"\nFCFS {fc:.1f} ms   SSTF {ss:.1f} ms   baseline {bmean:.1f} ms   (final greedy eval, lower is better; {args.eval_episodes} workloads/run)")
 print(f"{'experiment':22s} {'seeds':>5s} {'final ms':>9s} {'±s.e.':>6s} {'diff vs base':>13s} {'95% CI':>19s}  verdict")
-for d in table:
+shown = table[:30] if combo_parts else table
+if combo_parts: print(f"(--combo: showing the best 30 of {len(table)} rows; all rows, with interaction_ms, are in results.csv)")
+for d in shown:
     ci = f"[{d['ci95_lo']:+.1f}, {d['ci95_hi']:+.1f}]" if d["ci95_lo"] == d["ci95_lo"] else "-"
     df_ = f"{d['diff_vs_baseline_ms']:+.1f}" if d["diff_vs_baseline_ms"] == d["diff_vs_baseline_ms"] else "-"
-    print(f"{d['experiment']:22s} {d['seeds']:5d} {d['final_greedy_ms']:9.1f} {d['std_error']:6.1f} {df_:>13s} {ci:>19s}  {d['verdict']}")
+    print(f"{d['experiment']:22s} {d['seeds']:5d} {d['final_greedy_ms']:9.1f} {d['std_error']:6.1f} {df_:>13s} {ci:>19s}  {d['verdict']}"
+          + (f"  interaction {d['interaction_ms']:+.1f}" if d["interaction_ms"] == d["interaction_ms"] else ""))
 print("verdict = 'better'/'worse' only if the 95% CI of (experiment - baseline) excludes 0; otherwise 'within noise'.")
 if args.seeds == 1:
     print("note: with 1 seed the CI reflects evaluation-workload noise only; run-to-run training noise is NOT included. Use --seeds 3 or more.")
 with open(os.path.join(SWEEP, "results.csv"), "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=list(table[0])); w.writeheader(); w.writerows(table)
+with open(os.path.join(SWEEP, "experiments.csv"), "w", newline="") as f:      # key for the numbered bars in comparison.png
+    w = csv.writer(f)
+    for d in sorted(table, key=lambda d: d["exp"]): w.writerow([d["exp"], d["experiment"]])
 
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+if combo_parts: table = table[:40]          # chart only the best 40 when there are many combinations
 fig, ax = plt.subplots(figsize=(10, 0.45 * len(table) + 2.4))
-labels = [d["experiment"] for d in table]; vals = [d["final_greedy_ms"] for d in table]
+labels = [f"#{d['exp']}" for d in table]; vals = [d["final_greedy_ms"] for d in table]
 colmap = {"better": "#08519c", "worse": "#d95f5f", "within noise": "#9e9e9e", "baseline": "#ff7f0e", "n/a": "#cccccc"}
 y = np.arange(len(table))[::-1]
 ax.barh(y, vals, xerr=[d["std_error"] for d in table], color=[colmap[d["verdict"]] for d in table], capsize=3)
@@ -341,4 +493,4 @@ ax.set_title(f"{name}: {args.seeds} seed(s), {args.episodes} episodes, {args.eva
              "blue = significantly better than baseline, red = significantly worse, grey = within noise (95% CI)", fontsize=9)
 ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 1.0))
 fig.tight_layout(); fig.savefig(os.path.join(SWEEP, "comparison.png"), dpi=130)
-print(f"\nsaved: {SWEEP}/results.csv, comparison.png  ({time.time()-t0:.0f}s)")
+print(f"\nsaved: {SWEEP}/results.csv, experiments.csv, comparison.png  ({time.time()-t0:.0f}s)")
