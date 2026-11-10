@@ -92,7 +92,7 @@ def parse_args():
     g.add_argument("--tgt-update", type=int, default=2000, help="copy online -> target network every N environment steps")
     g.add_argument("--replay-cap", type=int, default=500_000, help="replay buffer capacity (transitions)")
     g.add_argument("--steps", type=int, default=1000, help="initial value of the global step counter (shifts the update cadence)")
-    g.add_argument("--hidden-sizes", type=hidden_sizes, default=[196], metavar="N[,N...]",
+    g.add_argument("--hidden-sizes", type=hidden_sizes, default=[96], metavar="N[,N...]",
                    help="neurons per MLP hidden layer, comma-separated; the list length is the number of hidden layers (e.g. 256,128,64)")
     g.add_argument("--activation", type=activation, default="selu", help="Activation function for MLPs")
     g = ap.add_argument_group("run / environment")
