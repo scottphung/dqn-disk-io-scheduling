@@ -1,0 +1,13 @@
+1,layers=196 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=225
+2,layers=196 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=250
+3,layers=196 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=225
+4,layers=196 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=250
+5,layers=256 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=225
+6,layers=256 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=250
+7,layers=256 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=225
+8,layers=256 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=250
+9,layers=300 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=225
+10,layers=300 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500k + reward_scale=250
+11,layers=300 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=225
+12,layers=300 + activation=selu + episodes=2000 + batch=384 + lr=8e-4to8e-5 + wd=1e-3 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.005 + replay_cap=500k + reward_scale=250
+13,baseline

@@ -1,0 +1,102 @@
+{
+ "args": {
+  "name": null,
+  "episodes": 1000,
+  "seeds": 5,
+  "jobs": 7,
+  "groups": "baseline,layers,activation,episodes,batch,lr,wd,tgt_update,hold,decay,eps_end,replay",
+  "include_env": true,
+  "combo": false,
+  "combo_all": true,
+  "combo_max": 0,
+  "combo_seed": 0,
+  "eval_episodes": 50,
+  "snap_eval_episodes": 10,
+  "snap_every": 100,
+  "resume": false,
+  "dry_run": false
+ },
+ "plan": [
+  {
+   "group": "baseline",
+   "label": "baseline",
+   "overrides": {}
+  },
+  {
+   "group": "combo-all:layers+activation+episodes+batch+lr+wd+tgt_update+hold+decay+eps_end+replay+env",
+   "label": "hidden_sizes=180 + activation=selu + episodes=2000 + batch=384 + lr0=0.0008+lr1=8e-05 + weight_decay=0.001 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500000 + reward_scale=250.0",
+   "overrides": {
+    "hidden_sizes": "180",
+    "activation": "selu",
+    "episodes": 2000,
+    "batch": 384,
+    "lr0": 0.0008,
+    "lr1": 8e-05,
+    "weight_decay": 0.001,
+    "tgt_update": 2000,
+    "hold": 0.35,
+    "decay": 0.65,
+    "eps_end": 0.05,
+    "replay_cap": 500000,
+    "reward_scale": 250.0
+   }
+  },
+  {
+   "group": "combo-all:layers+activation+episodes+batch+lr+wd+tgt_update+hold+decay+eps_end+replay+env",
+   "label": "hidden_sizes=165 + activation=selu + episodes=2000 + batch=384 + lr0=0.0008+lr1=8e-05 + weight_decay=0.001 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500000 + reward_scale=250.0",
+   "overrides": {
+    "hidden_sizes": "165",
+    "activation": "selu",
+    "episodes": 2000,
+    "batch": 384,
+    "lr0": 0.0008,
+    "lr1": 8e-05,
+    "weight_decay": 0.001,
+    "tgt_update": 2000,
+    "hold": 0.35,
+    "decay": 0.65,
+    "eps_end": 0.05,
+    "replay_cap": 500000,
+    "reward_scale": 250.0
+   }
+  },
+  {
+   "group": "combo-all:layers+activation+episodes+batch+lr+wd+tgt_update+hold+decay+eps_end+replay+env",
+   "label": "hidden_sizes=150 + activation=selu + episodes=2000 + batch=384 + lr0=0.0008+lr1=8e-05 + weight_decay=0.001 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500000 + reward_scale=250.0",
+   "overrides": {
+    "hidden_sizes": "150",
+    "activation": "selu",
+    "episodes": 2000,
+    "batch": 384,
+    "lr0": 0.0008,
+    "lr1": 8e-05,
+    "weight_decay": 0.001,
+    "tgt_update": 2000,
+    "hold": 0.35,
+    "decay": 0.65,
+    "eps_end": 0.05,
+    "replay_cap": 500000,
+    "reward_scale": 250.0
+   }
+  },
+  {
+   "group": "combo-all:layers+activation+episodes+batch+lr+wd+tgt_update+hold+decay+eps_end+replay+env",
+   "label": "hidden_sizes=128 + activation=selu + episodes=2000 + batch=384 + lr0=0.0008+lr1=8e-05 + weight_decay=0.001 + tgt_update=2000 + hold=0.35 + decay=0.65 + eps_end=0.05 + replay_cap=500000 + reward_scale=250.0",
+   "overrides": {
+    "hidden_sizes": "128",
+    "activation": "selu",
+    "episodes": 2000,
+    "batch": 384,
+    "lr0": 0.0008,
+    "lr1": 8e-05,
+    "weight_decay": 0.001,
+    "tgt_update": 2000,
+    "hold": 0.35,
+    "decay": 0.65,
+    "eps_end": 0.05,
+    "replay_cap": 500000,
+    "reward_scale": 250.0
+   }
+  }
+ ]
+}

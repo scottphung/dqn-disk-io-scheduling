@@ -1,0 +1,64 @@
+{
+ "args": {
+  "name": null,
+  "episodes": 1000,
+  "seeds": 5,
+  "jobs": 7,
+  "groups": "env",
+  "include_env": false,
+  "eval_episodes": 50,
+  "snap_eval_episodes": 10,
+  "snap_every": 100,
+  "resume": false,
+  "dry_run": false
+ },
+ "plan": [
+  {
+   "group": "baseline",
+   "label": "baseline",
+   "overrides": {}
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=80",
+   "overrides": {
+    "reward_scale": 80.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=90",
+   "overrides": {
+    "reward_scale": 90.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=95",
+   "overrides": {
+    "reward_scale": 95.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=105",
+   "overrides": {
+    "reward_scale": 105.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=110",
+   "overrides": {
+    "reward_scale": 110.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=125",
+   "overrides": {
+    "reward_scale": 125.0
+   }
+  }
+ ]
+}

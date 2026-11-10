@@ -1,0 +1,85 @@
+{
+ "args": {
+  "name": null,
+  "episodes": 1000,
+  "seeds": 5,
+  "jobs": 4,
+  "groups": "tgt_update",
+  "include_env": false,
+  "eval_episodes": 50,
+  "snap_eval_episodes": 10,
+  "snap_every": 100,
+  "resume": false,
+  "dry_run": false
+ },
+ "plan": [
+  {
+   "group": "baseline",
+   "label": "baseline",
+   "overrides": {}
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=500",
+   "overrides": {
+    "tgt_update": 500
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=2000",
+   "overrides": {
+    "tgt_update": 2000
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=3000",
+   "overrides": {
+    "tgt_update": 3000
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=5000",
+   "overrides": {
+    "tgt_update": 5000
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=8000",
+   "overrides": {
+    "tgt_update": 8000
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=1500",
+   "overrides": {
+    "tgt_update": 1500
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=1700",
+   "overrides": {
+    "tgt_update": 1700
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=2200",
+   "overrides": {
+    "tgt_update": 2200
+   }
+  },
+  {
+   "group": "tgt_update",
+   "label": "tgt_update=2500",
+   "overrides": {
+    "tgt_update": 2500
+   }
+  }
+ ]
+}

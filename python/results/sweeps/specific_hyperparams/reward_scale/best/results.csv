@@ -1,0 +1,4 @@
+group,experiment,seeds,final_greedy_ms,std_error,diff_vs_baseline_ms,ci95_lo,ci95_hi,verdict,basis,interaction_ms,last_train_ms,hangs,minutes
+env,reward_scale=250,1,83.52482242154707,6.685115194327496,-9.965263011337695,-16.649470507053984,-3.2810555156214063,better,"paired over 50 workloads, 1 seed (workload noise only)",nan,85.34723252962372,1,5.821182103951772
+env,reward_scale=225,1,87.1452260547196,5.969422226860518,-6.344859378165158,-11.077747029362168,-1.6119717269681475,better,"paired over 50 workloads, 1 seed (workload noise only)",nan,84.51663515358106,1,5.812032345930735
+baseline,baseline,1,93.49008543288475,6.676637978130908,nan,nan,nan,baseline,reference,nan,89.83155114257461,1,5.850424234072367

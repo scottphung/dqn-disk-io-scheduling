@@ -1,0 +1,40 @@
+{
+ "args": {
+  "name": null,
+  "episodes": 1000,
+  "seeds": 1,
+  "jobs": 4,
+  "groups": "env",
+  "include_env": false,
+  "combo": false,
+  "combo_all": false,
+  "combo_max": 0,
+  "combo_seed": 0,
+  "eval_episodes": 50,
+  "snap_eval_episodes": 10,
+  "snap_every": 100,
+  "resume": false,
+  "dry_run": false
+ },
+ "plan": [
+  {
+   "group": "baseline",
+   "label": "baseline",
+   "overrides": {}
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=225",
+   "overrides": {
+    "reward_scale": 225.0
+   }
+  },
+  {
+   "group": "env",
+   "label": "reward_scale=250",
+   "overrides": {
+    "reward_scale": 250.0
+   }
+  }
+ ]
+}

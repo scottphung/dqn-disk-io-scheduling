@@ -1,0 +1,99 @@
+{
+ "args": {
+  "name": null,
+  "episodes": 1000,
+  "seeds": 5,
+  "jobs": 7,
+  "groups": "activation",
+  "include_env": false,
+  "eval_episodes": 50,
+  "snap_eval_episodes": 10,
+  "snap_every": 100,
+  "resume": false,
+  "dry_run": false
+ },
+ "plan": [
+  {
+   "group": "baseline",
+   "label": "baseline",
+   "overrides": {}
+  },
+  {
+   "group": "activation",
+   "label": "activation=celu",
+   "overrides": {
+    "activation": "celu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=selu",
+   "overrides": {
+    "activation": "selu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=elu",
+   "overrides": {
+    "activation": "elu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=leakyrelu",
+   "overrides": {
+    "activation": "leakyrelu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=prelu",
+   "overrides": {
+    "activation": "prelu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=rrelu",
+   "overrides": {
+    "activation": "rrelu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=relu6",
+   "overrides": {
+    "activation": "relu6"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=gelu",
+   "overrides": {
+    "activation": "gelu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=silu",
+   "overrides": {
+    "activation": "silu"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=mish",
+   "overrides": {
+    "activation": "mish"
+   }
+  },
+  {
+   "group": "activation",
+   "label": "activation=glu",
+   "overrides": {
+    "activation": "glu"
+   }
+  }
+ ]
+}
