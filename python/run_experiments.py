@@ -36,7 +36,7 @@ VALID = P.parent / "valid"
 
 DISKS = ["cheetah4LP"]  # select the set of HDD's we will be testing
 
-CHECKPOINT = "waiting/for/checkpoint/from/josh"  # Path to the saved checkpoint
+CHECKPOINT = "python/ep2000.pt"  # Path to the saved checkpoint
 
 disk = DISKS[
     0
@@ -54,8 +54,25 @@ kw.update(parfile=str(VALID / f"{disk}.parv"), sizes=(8,))
 # Create the environment and restart its DiskSim worker every 250 resets to manage memory usage.
 env = gym.make("DiskSchedRecycled-v0", recycle_every=250, **kw)
 
+#######################################################
+# STEP 3: Generate 20 ASCII Traces for Validation Set #
+#######################################################
+
+# TODO: find Josh's function to generate ASCII traces and call to make 20. Should probably save in a csv or txt. Will need to check documentation.
+
+
+def generate_traces():
+    """
+    A function to generate a validation set of ASCII traces.
+
+    Returns:
+        _type_: _description_
+    """
+    pass
+
+
 #################################
-# STEP 3: Setup the trained DQN #
+# STEP 4: Setup the trained DQN #
 #################################
 
 # Get the hidden layers saved in the checkpoint
@@ -80,3 +97,45 @@ net.eval()
 # Select the highest valued valid request without random exploration
 def dqn(obs, mask, rng):
     return greedy(obs, net, ck["use_mask"], mask, rng)
+
+
+###################################
+# Step 5: Run DQN on ASCII Traces #
+###################################
+
+
+def run_dqn_trace():
+    """
+    Runs one ASCII Trace on the DQN.
+
+    Returns:
+        _type_: _description_
+    """
+    pass
+
+
+############################################
+# Step 6: Run comparisons and save outputs #
+############################################
+def run_baeline_trace():
+    """
+    Runs one ASCII Trace on DiskSim with a built in scheduler.
+
+    Returns:
+        _type_: _description_
+    """
+    pass
+
+
+def run_comparisons():
+    """
+    A runner to evaluate all four schedulers:
+        - DQN
+        - FCFS
+        - SSTF_LBN
+        - SPTF_OPT
+
+    Returns:
+        _type_: _description_
+    """
+    pass
