@@ -11,17 +11,28 @@ This file:
     - Collects Results as a CSV
     - Plots selected results
 
+11-09-26 Update:
+    - Started run_experiments.py and outlined what the file will do.
+    - Setup Cheetah4LP as the first HDD and fixed requests at 8 sectors.
+    - Started setting up the DQN using Josh's code. Waiting on the .pt file.
+
 11-11-26 Update:
     - Obtained .pt file from Josh's final build branch.
-    - Outlined steps for 11-12 work and prototyped some functions that wil be needed and added some started documentation.
+    - Outlined steps for 11-12-26 work and prototyped some functions that wil be needed and added some started documentation.
 
 11-12-26 Update:
     - Finished section to generate ASCII Trace Validation set on the Cheetah HDD, but can adapt to generate for all disks.
     - SUCCESS: Generated ASCII Trace Validation Files
+
     - Built DQN using training checkpoint from Josh's ep2000.pt file.
     - Wrote function to run the DQN on one of the ASCII Validation Trace files.
-    - Josh's libsim.so was for x86_64 linux, so had to make ARM 64 compatible .dylib
+    - Josh's libsim.so was for x86_64 linux, so had to make ARM 64 compatible .dylib.
     - SUCCESS: Ran one ASCII Trace Validation File through the DQN.
+
+    - Wrote function to run the the ASCII Trace Validation set on the DiskSim HDD
+    - Wrote function to run all ASCII Traces on the DQN and directly on DiskSim FCFS, SSTF_LBN, and SPTF_OPT
+    - SUCCESS: Results with race,scheduler,completed_requests,mean_response_ms,batch_completion_ms saved in CSV for all runs.
+    - First batch of results are in python/results/validation/cheetah4LP/full_validation/validation_results.csv
 """
 
 ###################
@@ -29,20 +40,22 @@ This file:
 ###################
 
 from pathlib import Path
-import sys, csv, json, subprocess
+import sys, csv, subprocess
 import numpy as np
 import torch
-import gymnasium as gym
-import disksim_env
 import re
 from types import SimpleNamespace
 from torch import nn
 from disksim_env.env import DiskSchedEnv
+from utils import greedy
+
+from shutil import copy2
+from tempfile import TemporaryDirectory
+
+import matplotlib.pyplot as plt
 
 P = Path(__file__).resolve().parent
 sys.path.insert(0, str(P / "examples"))
-from baselines import fcfs, evaluate
-from utils import greedy
 
 DISKSIM = P.parent / "STABLE" / "DiskSim_Linux_Generic_2.01.016"
 VALID = DISKSIM / "valid"
@@ -57,7 +70,7 @@ CHECKPOINT = P / "ep2000.pt"  # Path to the saved checkpoint
 
 disk = DISKS[
     0
-]  # running on only one disl right now, so will hard code, but may change later, therefore using acessing from a master list of available disks.
+]  # running on only one disk right now, so will hard code, but may change later, therefore using acessing from a master list of available disks.
 
 parfile = VALID / f"{disk}.parv"
 
@@ -65,27 +78,21 @@ parfile = VALID / f"{disk}.parv"
 ck = torch.load(CHECKPOINT, map_location="cpu", weights_only=True)
 
 # Copy the environment settings saved with Josh's trained model.
-kw = dict(ck["env_kwargs"])
+disk_environment_settings = dict(ck["env_kwargs"])
 
 # Select the HDD configuration and limit requests to 8 sectors (4 KiB).
-kw.update(parfile=str(VALID / f"{disk}.parv"), sizes=(8,))
+disk_environment_settings.update(parfile=str(VALID / f"{disk}.parv"), sizes=(8,))
 
-kw["lib_path"] = str(P.parent / "disksim.dylib")
-
-# Create the environment and restart its DiskSim worker every 250 resets to manage memory usage.
-# env = gym.make("DiskSchedRecycled-v0", recycle_every=250, **kw)
+disk_environment_settings["lib_path"] = str(P.parent / "disksim.dylib")
 
 trace_dir = P / "validation_traces" / disk
 results_dir = P / "results" / "validation" / disk
 generate_only = True  # Toggle to false when need to run comparisons.
 
+
 #######################################################
 # STEP 3: Generate 20 ASCII Traces for Validation Set #
 #######################################################
-
-# TODO: find Josh's function to generate ASCII traces and call to make 20. Should probably save in a csv or txt. Will need to check documentation.
-
-
 def generate_traces(
     validation_trace_directory, disk_model_path, checkpoint_environment_settings
 ):
@@ -281,9 +288,6 @@ def dqn(observation, action_mask, random_generator):
 ###################################
 # Step 5: Run DQN on ASCII Traces #
 ###################################
-
-
-# TODO: Need to double check requirements to prevent reset during evaluation.
 def run_dqn_trace(trace_path, policy, settings):
     """
     Runs the trained DQN on one ASCII Validation Trace.
@@ -439,49 +443,276 @@ def run_dqn_trace(trace_path, policy, settings):
 ############################################
 # Step 6: Run comparisons and save outputs #
 ############################################
-def run_baeline_trace():
+
+DISKSIM_EXECUTABLE = P.parent / "disksim_mac"
+
+# Scheduler policy numbers from DiskSim's disksim_ioqueue.h.
+BASELINE_POLICIES = {
+    "FCFS": 1,
+    "SSTF_LBN": 4,
+    "SPTF_OPT": 8,
+}
+
+
+def run_baseline_trace(trace_path, parameter_file, scheduler_name):
     """
-    Runs one ASCII Trace on DiskSim with a built in scheduler.
+    Run one ASCII validation trace using a built-in DiskSim scheduler.
+
+    Create a temporary working folder and copy the files needed to set up
+    the selected HDD. Set the I/O driver scheduling policy in a copy of
+    the parameter file. Run DiskSim with the same saved requests and
+    arrival times used for the DQN comparison.
+
+    Read the mean request response time from DiskSim's I/O driver report.
+    Use the detailed execution log to count completed requests and find
+    the last completion timestamp.
+
+    Args:
+        trace_path (Path): Path to the ASCII validation trace containing
+            the requests to replay.
+
+        parameter_file (Path): Path to the DiskSim .parv file for the
+            selected HDD. Its parent folder contains the disk model,
+            disk specification, seek curve, and statistics definition.
+
+        scheduler_name (str): Name of the built-in scheduler to use.
+            Supported names are FCFS, SSTF_LBN, and SPTF_OPT.
 
     Returns:
-        _type_: _description_
+        tuple[int, float, float | None]:
+            - The number of requests recorded in the completion log.
+            - Mean request response time in milliseconds, measured from
+              each request's arrival to its completion and then averaged.
+            - Batch completion time in milliseconds, measured from trace
+              time zero to the last recorded completion. This value is
+              None if the completion log contains no request records.
+
+        The comparison runner checks the completed request count against
+        the expected count before using either timing in the plots.
+    """
+
+    # Give this baseline run its own folder for the configuration and logs.
+    with TemporaryDirectory() as temporary_directory:
+
+        run_directory = Path(temporary_directory)
+
+        # Copy the files referenced by the Cheetah parameter and model files.
+        for filename in (
+            "statdefs",
+            "cheetah4LP.diskspecs",
+            "cheetah4LP.model",
+            "cheetah4LP.seek",
+        ):
+            copy2(parameter_file.parent / filename, run_directory / filename)
+
+        # Change the I/O driver scheduler in the copied configuration.
+        scheduler_policy = BASELINE_POLICIES[scheduler_name]
+
+        parameter_contents, replacement_count = re.subn(
+            r"(?m)^([ \t]*Scheduling policy[ \t]*=[ \t]*)\d+",
+            lambda match: f"{match[1]}{scheduler_policy}",
+            parameter_file.read_text(),
+            count=1,
+        )
+
+        if replacement_count != 1:
+            raise ValueError(f"Scheduler setting missing in {parameter_file}")
+
+        # Ask DiskSim to record the completion time of each request.
+        parameter_contents = parameter_contents.replace(
+            "disksim_global Global {",
+            "disksim_global Global {\nDetailed execution trace = completions.csv,",
+            1,
+        )
+        (run_directory / "baseline.parv").write_text(parameter_contents)
+
+        # Run DiskSim on the same ASCII trace used by the DQN.
+        subprocess.run(
+            [
+                str(DISKSIM_EXECUTABLE),
+                "baseline.parv",
+                "baseline.out",
+                "ascii",
+                str(trace_path.resolve()),
+                "0",
+            ],
+            cwd=run_directory,
+            check=True,
+            timeout=120,
+        )
+
+        # Read the mean request response time from the I/O driver report.
+        report_contents = (run_directory / "baseline.out").read_text()
+        response_time_match = re.search(
+            r"(?m)^IOdriver Response time average:\s*([0-9.eE+-]+)",
+            report_contents,
+        )
+
+        if response_time_match is None:
+            raise ValueError(f"Missing response time for {scheduler_name}")
+
+        mean_response_time_ms = float(response_time_match[1])
+
+        # The last completion timestamp gives the batch time from trace time zero.
+        with (run_directory / "completions.csv").open(newline="") as completion_file:
+            completion_times_ms = [
+                float(request["simtime"]) for request in csv.DictReader(completion_file)
+            ]
+
+    completed_requests = len(completion_times_ms)
+    batch_completion_time_ms = max(completion_times_ms, default=None)
+
+    return completed_requests, mean_response_time_ms, batch_completion_time_ms
+
+
+def run_comparisons(trace_paths, parameter_file, output_directory):
+    """
+    Run all four schedulers on each ASCII validation trace.
+
+    Use the same saved requests and arrival times for the trained DQN,
+    FCFS, SSTF_LBN, and SPTF_OPT. Save one CSV row per scheduler and
+    trace after checking that the scheduler completed the full workload
+    and returned both timings.
+
+    Args:
+        trace_paths (list[Path]): Paths to the saved validation traces.
+
+        parameter_file (Path): Path to the DiskSim .parv file used for
+            the baseline runs.
+
+        output_directory (Path): Directory for validation_results.csv.
+
+    Returns:
+        Path: Path to the saved validation_results.csv file.
+
+    Raises:
+        FileExistsError: The results CSV already exists.
+
+        RuntimeError: A scheduler does not complete the full trace or
+            does not return both timing values.
+    """
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+
+    scheduler_names = ["DQN", *BASELINE_POLICIES]
+    expected_requests = ck["env_kwargs"]["episode_requests"]
+    results_path = output_directory / "validation_results.csv"
+
+    # Use "x" to protect results from an earlier run.
+    with results_path.open("x", newline="") as results_file:
+
+        results_writer = csv.writer(results_file)
+        results_writer.writerow(
+            [
+                "trace",
+                "scheduler",
+                "completed_requests",
+                "mean_response_ms",
+                "batch_completion_ms",
+            ]
+        )
+
+        for trace_path in trace_paths:
+
+            for scheduler_name in scheduler_names:
+
+                print(f"Running {scheduler_name} on {trace_path.name}")
+
+                if scheduler_name == "DQN":
+
+                    scheduler_result = run_dqn_trace(
+                        trace_path,
+                        policy=dqn,
+                        settings=disk_environment_settings,
+                    )
+
+                else:
+
+                    scheduler_result = run_baseline_trace(
+                        trace_path,
+                        parameter_file,
+                        scheduler_name,
+                    )
+
+                (
+                    completed_requests,
+                    mean_response_time_ms,
+                    batch_completion_time_ms,
+                ) = scheduler_result
+
+                # Only save timings when the full trace was completed.
+                if (
+                    completed_requests != expected_requests
+                    or mean_response_time_ms is None
+                    or batch_completion_time_ms is None
+                ):
+                    raise RuntimeError(
+                        f"{scheduler_name} did not return complete results for "
+                        f"{trace_path.name}. Completed "
+                        f"{completed_requests}/{expected_requests} requests."
+                    )
+
+                results_writer.writerow(
+                    [
+                        trace_path.name,
+                        scheduler_name,
+                        completed_requests,
+                        mean_response_time_ms,
+                        batch_completion_time_ms,
+                    ]
+                )
+                results_file.flush()
+
+    print(f"Saved results to {results_path}")
+
+    return results_path
+
+
+####################
+# STEP 7: Plotting #
+####################
+# TODO: Decide best way to plot the results and then write code to do so. Probably will use bar charts.
+def plot_trace_comparisons(results_path, plot_directory):
+    """
+    A function to plot the results of the ASCII Trace validation runs.
+    Args:
+        results_path (_type_): _description_
+        plot_directory (_type_): _description_
+
+    Raises:
+        FileNotFoundError: _description_
     """
     pass
 
 
-def run_comparisons():
-    """
-    A runner to evaluate all four schedulers:
-        - DQN
-        - FCFS
-        - SSTF_LBN
-        - SPTF_OPT
+#######################
+# STEP 8: Main Runner #
+#######################
 
-    Returns:
-        _type_: _description_
-    """
-    pass
-
-
-# Test to see if the DQN qorks on a trace
 if __name__ == "__main__":
 
-    # Use the first saved validation trace for this test.
-    validation_trace_path = trace_dir / "validation_200000.trace"
-    expected_requests = ck["env_kwargs"]["episode_requests"]
+    # Load all 20 saved validation traces.
+    validation_trace_paths = [
+        trace_dir / f"validation_{validation_seed}.trace"
+        for validation_seed in range(200_000, 200_020)
+    ]
 
-    print(f"Testing DQN on {validation_trace_path.name}")
+    for validation_trace_path in validation_trace_paths:
 
-    completed_requests, mean_response_time_ms, batch_completion_time_ms = run_dqn_trace(
-        validation_trace_path,
-        policy=dqn,
-        settings=kw,
+        if not validation_trace_path.is_file():
+            raise FileNotFoundError(validation_trace_path)
+
+    # Run all four schedulers on every trace and save the CSV.
+    comparison_directory = results_dir / "full_validation"
+
+    results_path = run_comparisons(
+        validation_trace_paths,
+        parfile,
+        comparison_directory,
     )
 
-    print(f"Completed requests: {completed_requests}/{expected_requests}")
-
-    if completed_requests == expected_requests and mean_response_time_ms is not None:
-        print(f"Mean response time: {mean_response_time_ms:.3f} ms")
-        print(f"Batch completion time: {batch_completion_time_ms:.3f} ms")
-    else:
-        raise SystemExit("The DQN test did not complete the full workload.")
+    # TODO: Implement this function later, ideally want a bar chart for mean completion time and one for total batch completion time. Results can be read from the CSV.
+    plot_trace_comparisons(
+        results_path,
+        comparison_directory / "plots",
+    )
