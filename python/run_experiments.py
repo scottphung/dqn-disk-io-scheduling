@@ -47,7 +47,6 @@ import re
 from types import SimpleNamespace
 from torch import nn
 from disksim_env.env import DiskSchedEnv
-from utils import greedy
 
 from shutil import copy2
 from tempfile import TemporaryDirectory
@@ -56,6 +55,7 @@ import matplotlib.pyplot as plt
 
 P = Path(__file__).resolve().parent
 sys.path.insert(0, str(P / "examples"))
+from utils import greedy
 
 DISKSIM = P.parent / "STABLE" / "DiskSim_Linux_Generic_2.01.016"
 VALID = DISKSIM / "valid"
@@ -671,18 +671,96 @@ def run_comparisons(trace_paths, parameter_file, output_directory):
 ####################
 # STEP 7: Plotting #
 ####################
-# TODO: Decide best way to plot the results and then write code to do so. Probably will use bar charts.
+
+
 def plot_trace_comparisons(results_path, plot_directory):
     """
-    A function to plot the results of the ASCII Trace validation runs.
+    Plot the scheduler timings for each ASCII validation trace.
+
+    Read the CSV saved by run_comparisons() and save two horizontal bar
+    charts per trace. One shows mean request response time and the other
+    shows total batch completion time. Both show times in milliseconds.
+
     Args:
-        results_path (_type_): _description_
-        plot_directory (_type_): _description_
+        results_path (Path): Path to the saved validation_results.csv.
+
+        plot_directory (Path): Directory where the charts will be saved.
 
     Raises:
-        FileNotFoundError: _description_
+        FileNotFoundError: The results CSV does not exist.
     """
-    pass
+
+    scheduler_names = ["DQN", *BASELINE_POLICIES]
+    scheduler_colors = ["tab:orange"] + ["tab:blue"] * len(BASELINE_POLICIES)
+
+    results_by_trace = {}
+
+    # Group the saved results by trace and scheduler.
+    with results_path.open(newline="") as results_file:
+
+        for result_row in csv.DictReader(results_file):
+
+            trace_name = result_row["trace"]
+            scheduler_name = result_row["scheduler"]
+
+            results_by_trace.setdefault(trace_name, {})[scheduler_name] = result_row
+
+    plot_directory.mkdir(parents=True, exist_ok=True)
+
+    plot_settings = (
+        ("mean_response_ms", "Mean request response time (ms)"),
+        ("batch_completion_ms", "Total batch completion time (ms)"),
+    )
+
+    for trace_name, scheduler_results in results_by_trace.items():
+
+        trace_filename = Path(trace_name).stem
+
+        for metric_column, x_axis_label in plot_settings:
+
+            scheduler_times_ms = [
+                float(scheduler_results[scheduler_name][metric_column])
+                for scheduler_name in scheduler_names
+            ]
+
+            figure, axis = plt.subplots(figsize=(8, 3))
+
+            bars = axis.barh(
+                scheduler_names,
+                scheduler_times_ms,
+                color=scheduler_colors,
+            )
+
+            # Show the time next to each bar and leave room for the labels.
+            axis.bar_label(
+                bars,
+                labels=[f"{time_ms:.3f} ms" for time_ms in scheduler_times_ms],
+                padding=5,
+            )
+            axis.set_xlim(0, max(scheduler_times_ms) * 1.20)
+
+            axis.invert_yaxis()
+            axis.set_title(trace_filename)
+            axis.set_xlabel(x_axis_label)
+            axis.set_ylabel("Scheduler")
+
+            figure.tight_layout()
+
+            # Save each chart in the folder for its timing metric.
+            if metric_column == "mean_response_ms":
+                metric_plot_directory = plot_directory / "mean_response_time"
+            else:
+                metric_plot_directory = plot_directory / "total_batch_time"
+
+            metric_plot_directory.mkdir(parents=True, exist_ok=True)
+
+            figure.savefig(
+                metric_plot_directory / f"{trace_filename}.png",
+                dpi=150,
+            )
+            plt.close(figure)
+
+    print(f"Saved plots to {plot_directory}")
 
 
 #######################
