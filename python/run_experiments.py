@@ -17,7 +17,11 @@ This file:
 
 11-12-26 Update:
     - Finished section to generate ASCII Trace Validation set on the Cheetah HDD, but can adapt to generate for all disks.
+    - SUCCESS: Generated ASCII Trace Validation Files
     - Built DQN using training checkpoint from Josh's ep2000.pt file.
+    - Wrote function to run the DQN on one of the ASCII Validation Trace files.
+    - Josh's libsim.so was for x86_64 linux, so had to make ARM 64 compatible .dylib
+    - SUCCESS: Ran one ASCII Trace Validation File through the DQN.
 """
 
 ###################
@@ -65,6 +69,8 @@ kw = dict(ck["env_kwargs"])
 
 # Select the HDD configuration and limit requests to 8 sectors (4 KiB).
 kw.update(parfile=str(VALID / f"{disk}.parv"), sizes=(8,))
+
+kw["lib_path"] = str(P.parent / "disksim.dylib")
 
 # Create the environment and restart its DiskSim worker every 250 resets to manage memory usage.
 # env = gym.make("DiskSchedRecycled-v0", recycle_every=250, **kw)
@@ -280,18 +286,154 @@ def dqn(observation, action_mask, random_generator):
 # TODO: Need to double check requirements to prevent reset during evaluation.
 def run_dqn_trace(trace_path, policy, settings):
     """
-    Runs one ASCII Trace on the DQN.
+    Runs the trained DQN on one ASCII Validation Trace.
+
+    Read the saved requests and use their original arrival times. Use
+    Josh's reset() and step() methods from python/disksim_env/env.py to
+    setup the simulator, update the queue, and service each request.
+
+    Args:
+        trace_path (Path): Path to the ASCII validation trace.
+
+        policy (callable): Function that uses the observation and action
+            mask to select the next request.
+
+        settings (dict): Environment settings for the selected HDD.
 
     Returns:
-        _type_: _description_
-    """
-    env = gym.make("DiskSchedRecycled-v0", recycle_every=250, **settings)
+        tuple[int, float | None, float | None]:
+            - The number of completed requests,
+            - mean request response time in milliseconds,
+            - batch completion time in milliseconds.
 
-    try:
-        # TODO: Reset the environment with the saved requests and run the DQN
-        pass
-    finally:
-        env.close()
+            Mean response time averages the time from each request's
+            arrival to its completion.
+
+            Batch completion time measures
+            the elapsed simulated time from the start of the trace
+            (time zero) to the last request's completion.
+
+            If the simulator stops before completing the full trace,
+            the function returns the completed request count and None
+            for both timing values.
+    """
+
+    saved_requests = []
+
+    # Read the requests in the same order they were saved in Step 3.
+    for trace_line in trace_path.read_text().splitlines():
+
+        if not trace_line.strip():
+            continue
+
+        (
+            arrival_time_ms,
+            device_number,
+            logical_block_number,
+            request_size_sectors,
+            operation_flag,
+        ) = trace_line.split()
+
+        # The validation traces use device 0 and flags 0 or 1.
+        if device_number != "0" or operation_flag not in ("0", "1"):
+            raise ValueError(f"Invalid request in {trace_path}: {trace_line}")
+
+        saved_requests.append(
+            {
+                "t": float(arrival_time_ms),
+                "lbn": int(logical_block_number),
+                "size": int(request_size_sectors),
+                "read": operation_flag == "1",
+            }
+        )
+
+    if not saved_requests:
+        raise ValueError(f"No requests found in {trace_path}")
+
+    # Finish the episode after completing all requests in this trace.
+    expected_requests = len(saved_requests)
+    environment_settings = dict(settings)
+    environment_settings["episode_requests"] = expected_requests
+    environment_settings.setdefault("lib_path", str(DISKSIM / "src" / "libdsim.so"))
+
+    # Keep Josh's training size settings for the DQN's input scaling.
+    # The saved trace supplies the actual size of each request.
+    environment_settings["sizes"] = ck["env_kwargs"]["sizes"]
+
+    environment = DiskSchedEnv(**environment_settings)
+    saved_request_iterator = iter(saved_requests)
+
+    def load_next_trace_request():
+        """
+        Load the next request from the saved ASCII validation trace.
+
+        Read the next request from saved_request_iterator, which is set up
+        in run_dqn_trace(). Keep the request's saved arrival time, logical
+        block number, size, and read/write flag. Use Josh's lbn_to_pbn()
+        method to find the cylinder needed for the DQN's observation.
+
+        Store the request in environment._next_req so Josh's arrival
+        queue can add it when its scheduled arrival time is reached.
+        When the iterator is exhausted, set the next arrival time to
+        infinity to mark the end of the trace.
+
+        Args:
+            None. The function uses saved_request_iterator and environment
+            from the enclosing run_dqn_trace() function.
+
+        Returns:
+            None. The function updates environment._next_req directly.
+        """
+
+        saved_request = next(saved_request_iterator, None)
+
+        if saved_request is None:
+
+            # Mark the end of the trace so the arrival loop stops.
+            environment._next_req = {"t": float("inf")}
+            return
+
+        # Look up the cylinder used in the DQN's observation.
+        next_request = dict(saved_request)
+        logical_block_number = next_request["lbn"]
+        next_request["cyl"] = environment.sim.lbn_to_pbn(logical_block_number)[0]
+
+        environment._next_req = next_request
+
+    # Use the saved trace as the source of requests.
+    environment._new_arrival = load_next_trace_request
+
+    # Reset once to setup the simulator and get the first observation.
+    observation, information = environment.reset()
+
+    terminated = False
+    truncated = False
+
+    while not (terminated or truncated):
+
+        # Use the trained DQN to select the next request.
+        selected_action = policy(
+            observation,
+            information["action_mask"],
+            None,
+        )
+
+        # Use Josh's step() to service the request and update the queue.
+        observation, _, terminated, truncated, information = environment.step(
+            selected_action
+        )
+
+    # Get the results and close DiskSim after the trace ends.
+    completed_requests = information["completed"]
+    mean_response_time_ms = information["mean_response_ms"]
+    batch_completion_time_ms = information["time_ms"]
+    environment.close()
+
+    # Only report the response time if every request was completed.
+    if completed_requests != expected_requests:
+        return completed_requests, None, None
+
+    return completed_requests, mean_response_time_ms, batch_completion_time_ms
 
 
 ############################################
@@ -319,3 +461,27 @@ def run_comparisons():
         _type_: _description_
     """
     pass
+
+
+# Test to see if the DQN qorks on a trace
+if __name__ == "__main__":
+
+    # Use the first saved validation trace for this test.
+    validation_trace_path = trace_dir / "validation_200000.trace"
+    expected_requests = ck["env_kwargs"]["episode_requests"]
+
+    print(f"Testing DQN on {validation_trace_path.name}")
+
+    completed_requests, mean_response_time_ms, batch_completion_time_ms = run_dqn_trace(
+        validation_trace_path,
+        policy=dqn,
+        settings=kw,
+    )
+
+    print(f"Completed requests: {completed_requests}/{expected_requests}")
+
+    if completed_requests == expected_requests and mean_response_time_ms is not None:
+        print(f"Mean response time: {mean_response_time_ms:.3f} ms")
+        print(f"Batch completion time: {batch_completion_time_ms:.3f} ms")
+    else:
+        raise SystemExit("The DQN test did not complete the full workload.")
