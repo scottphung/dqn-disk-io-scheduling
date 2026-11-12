@@ -14,6 +14,10 @@ This file:
 11-11-26 Update:
     - Obtained .pt file from Josh's final build branch.
     - Outlined steps for 11-12 work and prototyped some functions that wil be needed and added some started documentation.
+
+11-12-26 Update:
+    - Finished section to generate ASCII Trace Validation set on the Cheetah HDD, but can adapt to generate for all disks.
+    - Built DQN using training checkpoint from Josh's ep2000.pt file.
 """
 
 ###################
@@ -34,7 +38,7 @@ from disksim_env.env import DiskSchedEnv
 P = Path(__file__).resolve().parent
 sys.path.insert(0, str(P / "examples"))
 from baselines import fcfs, evaluate
-from utils import greedy  # build_mlp, activation
+from utils import greedy
 
 DISKSIM = P.parent / "STABLE" / "DiskSim_Linux_Generic_2.01.016"
 VALID = DISKSIM / "valid"
@@ -194,46 +198,78 @@ def generate_traces(
                 )
 
 
-# Test the validation trace generator before setting up the DQN
-if __name__ == "__main__":
+# TODO: Move to the final evaluation section once finished rough build.
+# # Test the validation trace generator before setting up the DQN
+# if __name__ == "__main__":
 
-    trace_dir = P / "validation_traces" / disk
+#     trace_dir = P / "validation_traces" / disk
 
-    generate_traces(
-        validation_trace_directory=trace_dir,
-        disk_model_path=VALID / f"{disk}.model",
-        checkpoint_environment_settings=kw,
-    )
+#     generate_traces(
+#         validation_trace_directory=trace_dir,
+#         disk_model_path=VALID / f"{disk}.model",
+#         checkpoint_environment_settings=kw,
+#     )
 
-    print(f"Saved validation traces to {trace_dir}")
-    raise SystemExit(0)
+#     print(f"Saved validation traces to {trace_dir}")
+#     raise SystemExit(0)
 
 #################################
 # STEP 4: Setup the trained DQN #
 #################################
 
-# Get the hidden layers saved in the checkpoint
-hidden = ck["hidden"]
+# Get the number of neurons in the hidden layer saved in Josh's checkpoint.
+# ck["hidden"] is [96], so the first entry is the size of the only hidden layer in this model.
+hidden_layer_size = ck["hidden"][0]
 
-# Older checkpoints saved one size for two hidden layers
-if not isinstance(hidden, list):
-    hidden = [hidden, hidden]
+# Rebuild the network in the same order Josh used to train it.
+# - Linear: The first Linear layer takes the 99 values that describe the disk and pending requests and passes them to the 96-unit hidden layer.
+# - SELU: the activation function saved in Josh's checkpoint.
+# - Dropout: dropout is 0.0 in final checkpoint, but keeping so when loading state from checkpoint it all matches up.
+# - Linear: final layer returns 16 scores, one for each queue slot.
+net = nn.Sequential(
+    nn.Linear(ck["nin"], hidden_layer_size),
+    nn.SELU(),
+    nn.Dropout(ck["train"]["policy_dropout"]),
+    nn.Linear(hidden_layer_size, ck["nout"]),
+)
 
-# Get the activation function and dropout used during training
-act = activation(ck.get("activation", "relu"))
-dropout = ck.get("train", {}).get("policy_dropout", 0.0)
-
-# Build the network using the saved input, output, and hidden layer sizes
-net = build_mlp(ck["nin"], ck["nout"], hidden, act, dropout)
-
-# Load Josh's trained weights and turn off dropout for evaluation
+# Load Josh's trained weights into the network just built.
+# Set the network to evaluation mode so dropout is disabled.
 net.load_state_dict(ck["state_dict"])
 net.eval()
 
 
-# Select the highest valued valid request without random exploration
-def dqn(obs, mask, rng):
-    return greedy(obs, net, ck["use_mask"], mask, rng)
+def dqn(observation, action_mask, random_generator):
+    """
+    Select the next request using Josh's trained DQN.
+
+    Reuse Josh's greedy() function from python/examples/utils.py.
+    It scores the queue slots using the current observation and
+    selects the highest scoring slot. The checkpoint enables action
+    masking, so empty slots are excluded from that choice.
+
+    Args:
+        observation (np.ndarray): The current disk and queue information
+            returned by the environment. This checkpoint expects 99 values.
+
+        action_mask (np.ndarray): Boolean values for the 16 queue slots.
+            True means the slot contains a request that can be selected.
+
+        random_generator: Argument passed through to Josh's greedy helper
+            to match the policy function signature. Greedy selection
+            does not use it, so the runner can pass None.
+
+    Returns:
+        int: Index of the queue slot selected for the next request.
+    """
+
+    return greedy(
+        observation,
+        net,
+        ck["use_mask"],
+        action_mask,
+        random_generator,
+    )
 
 
 ###################################
