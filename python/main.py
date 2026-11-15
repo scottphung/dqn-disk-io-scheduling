@@ -149,6 +149,7 @@ Results: results/sweeps/<name>/  ->  results.csv, comparison.png, runs/<label>_s
 """
 import argparse, csv, glob, json, os, signal, subprocess, sys, time
 
+# Paths: this folder, and the single-run training script launched for every experiment.
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRAIN = os.path.join(HERE, "examples", "dqn_smoke.py")
 
@@ -169,12 +170,12 @@ EXPERIMENTS = [
     # ("layers", {"hidden_sizes": "128"}),
     # ("layers", {"hidden_sizes": "115"}),
     ("layers", {"hidden_sizes": "96"}),  # Best
-    ("layers", {"hidden_sizes": "80"}),
-    ("layers", {"hidden_sizes": "64"}),
-    ("layers", {"hidden_sizes": "50"}),
-    ("layers", {"hidden_sizes": "64,64"}),
-    ("layers", {"hidden_sizes": "96,96"}),
-    ("layers", {"hidden_sizes": "64,32"}),
+    # ("layers", {"hidden_sizes": "80"}),
+    # ("layers", {"hidden_sizes": "64"}),
+    # ("layers", {"hidden_sizes": "50"}),
+    # ("layers", {"hidden_sizes": "64,64"}),
+    # ("layers", {"hidden_sizes": "96,96"}),
+    # ("layers", {"hidden_sizes": "64,32"}),
 
     ("activation", {"activation": "selu"}),  # best
     # ("activation", {"activation": "leakyrelu"}),
@@ -255,6 +256,7 @@ EXPERIMENTS = [
 ]
 DEFAULT_GROUPS = [g for g in dict.fromkeys(e[0] for e in EXPERIMENTS) if g != "env"]
 
+# ---- command-line options
 ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 ap.add_argument("--name", default=None, help="sweep name (default: timestamp)")
 ap.add_argument("--episodes", type=int, default=1000, help="episodes for every run (the episodes group overrides it)")
@@ -273,6 +275,7 @@ ap.add_argument("--resume", action="store_true", help="skip runs that already fi
 ap.add_argument("--dry-run", action="store_true", help="print the plan and exit")
 args = ap.parse_args()
 
+# ---- build the experiment plan: selected groups -> (group, label, overrides) tuples
 groups = {"baseline"} | set(args.groups.split(","))
 if args.include_env: groups.add("env")
 unknown = groups - {e[0] for e in EXPERIMENTS}
@@ -288,6 +291,8 @@ dupes = sorted({l for l in (e[1] for e in plan)
                 if sum(1 for e in plan if e[1] == l) > 1})
 if dupes: sys.exit(f"duplicate experiments (identical overrides) in EXPERIMENTS: {dupes}")
 
+# --combo-all builds a full factorial
+# --combo builds cross-group pairs (see module docstring).
 combo_parts = {}                    # pair label -> (label_a, label_b)
 if args.combo_all:
     import itertools, random
@@ -321,6 +326,7 @@ name = args.name or time.strftime("sweep-%Y%m%d-%H%M%S")
 SWEEP = os.path.join(HERE, "results", "sweeps", name)
 RUNS = os.path.join(SWEEP, "runs")
 
+# Episodes for a run: the experiment's own override, else the --episodes default.
 def episodes_of(over): return over.get("episodes", args.episodes)
 def cost(job):                       # rough relative cost, used to start the slow runs first
     _, label, over, seed = job
@@ -329,8 +335,10 @@ def cost(job):                       # rough relative cost, used to start the sl
 jobs = [(g, l, o, s) for (g, l, o) in plan for s in range(args.seeds)]
 jobs.sort(key=cost, reverse=True)
 
+# Folder for one (experiment, seed) run.
 def out_dir(job): return os.path.join(RUNS, f"{job[1]}_s{job[3]}")
 def command(job):
+    """Build the dqn_smoke.py command line for a job (overrides become --flags)."""
     _, label, over, seed = job
     cmd = [sys.executable, "-I", TRAIN, str(episodes_of(over))]
     for k, v in over.items():
@@ -338,9 +346,11 @@ def command(job):
     return cmd + ["--seed", str(seed), "--snap-every", str(args.snap_every), "--eval-episodes", str(args.eval_episodes),
                   "--snap-eval-episodes", str(args.snap_eval_episodes), "--threads", "1", "--out-dir", out_dir(job)]
 def summary_of(job):
+    """Load the run's summary.json, or None if it has not been written."""
     f = glob.glob(os.path.join(out_dir(job), "*", "summary.json"))
     return json.load(open(f[0])) if f else None
 def finished(job):
+    """True if the run completed with status 'ok' (used by --resume)."""
     s = summary_of(job); return bool(s and s.get("status") == "ok")
 
 print(f"sweep '{name}': {len(plan)} experiments x {args.seeds} seed(s) = {len(jobs)} runs, {args.jobs} in parallel")
@@ -366,6 +376,7 @@ env_vars = dict(os.environ, OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_N
 
 running, done_n, t0 = [], 0, time.time()
 def reap(block=False):
+    """Collect finished subprocesses and print one progress line for each."""
     global done_n
     for p, job, t in running[:]:
         if p.poll() is not None:
@@ -373,6 +384,7 @@ def reap(block=False):
             s = summary_of(job)
             res = f"final greedy {s['final_greedy_ms']:.1f} ms" if s and s.get("final_greedy_ms") else "NO RESULT (see log)"
             print(f"[{done_n}/{len(todo)}] {job[1]} seed {job[3]}: exit {p.returncode}, {res}, {time.time()-t:.0f}s", flush=True)
+# ---- scheduler: keep --jobs subprocesses running; Ctrl-C stops them but keeps partial results
 try:
     queue = list(todo)
     while queue or running:
@@ -434,6 +446,7 @@ def compare(runs):
     verdict = "better" if hi < 0 else ("worse" if lo > 0 else "within noise")
     return d, lo, hi, se, basis, verdict
 
+# ---- one summary row per experiment (mean over seeds, CI vs baseline, verdict)
 table = []
 for exp_no, ((g, l), runs) in enumerate(rows.items(), 1):
     v = np.array([r["final_greedy_ms"] for r in runs.values()])
@@ -476,6 +489,7 @@ with open(os.path.join(SWEEP, "experiments.csv"), "w", newline="") as f:      # 
     w = csv.writer(f)
     for d in sorted(table, key=lambda d: d["exp"]): w.writerow([d["exp"], d["experiment"]])
 
+# ---- comparison chart: one bar per experiment, coloured by verdict
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 if combo_parts: table = table[:40]          # chart only the best 40 when there are many combinations

@@ -1,3 +1,4 @@
+"""Helpers for dqn_smoke.py: network/optimizer factories, weight init, replay buffer, snapshots (weights, CSV, PNG)."""
 import argparse
 import math
 import numpy as np
@@ -11,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from baselines import evaluate
 
+# Name -> class lookups used by the command-line parsers.
 HERE = os.path.dirname(os.path.abspath(__file__))
 OPTIMIZERS = {
     "adam":    torch.optim.Adam,
@@ -44,14 +46,16 @@ WINIT_AUTO = {
     "selu": "lecun",
     "tanh": "xavier", "sig": "xavier", "sigmoid": "xavier", "glu": "xavier",
 }
+# Valid --winit values.
 WINIT = ("auto", "he", "lecun", "xavier", "default")
-NEG = -1e9
-HIST = []                                             
+NEG = -1e9   # Q-value assigned to invalid actions when masking
+HIST = []  # per-episode rows: (episode, epsilon, lr, mean_response_ms, completed, hang)                                             
 EVAL_HIST = []  # eval_hist: (episodes_done, greedy mean ms)
 LAST = {}       # LAST: last snapshot's results
 
 
 def activation(act):
+    """argparse type: activation name -> torch.nn class."""
     try:
         return ACT[act.lower()]
     except KeyError:
@@ -60,6 +64,7 @@ def activation(act):
 
 
 def atomic(write, path): 
+    """Write via `write(tmp_path)` then rename, so a crash never leaves a partial file."""
     write(path + ".tmp"); os.replace(path + ".tmp", path)  # a crash mid-save never corrupts the last file
 
 
@@ -120,6 +125,7 @@ def hidden_sizes(s):
 
 
 def greedy(obs, net, use_mask, mask=None, rng=None):
+    """Argmax-Q action for one observation (eval mode, no grad, invalid slots masked)."""
     was_training = net.training
     net.eval()
     try:
@@ -133,15 +139,18 @@ def greedy(obs, net, use_mask, mask=None, rng=None):
 
 
 def last_train_mean(k=25):
+    """Mean training response time over the last k episodes (excluding empty ones), and the count used."""
     r = [x[3] for x in HIST[-k:] if x[4]]
     return float(np.mean(r)) if r else float("nan"), min(k, len(HIST))
 
 
 def ms(v): 
+    """(mean, std) ignoring NaNs."""
     return (float(np.nanmean(v)), float(np.nanstd(v)))
 
 
 def optimizer(name):
+    """argparse type: optimizer name -> torch.optim class."""
     try:
         return OPTIMIZERS[name.lower()]
     except KeyError:
@@ -150,6 +159,7 @@ def optimizer(name):
 
 
 def save_png(ep_done, res, n_eval, episodes, run, run_dir, seeds):
+    """Save a 3-panel progress plot: training curve vs baselines, epsilon/lr schedules, greedy eval bars."""
     h = np.array(HIST, dtype=float)
     ep_ = h[:, 0]
     eps_ = h[:, 1]
@@ -212,6 +222,7 @@ def save_png(ep_done, res, n_eval, episodes, run, run_dir, seeds):
 
 
 def save_weights(env, net, nin, nout, use_mask, tag, run, plain, args, run_dir, ep_done):
+    """Save a checkpoint (.pt) with weights plus the env/training settings needed by eval_checkpoint.py."""
     e = env.unwrapped
     atomic(lambda f: torch.save({
         "state_dict": net.state_dict(), "episodes_done": ep_done,
@@ -247,6 +258,7 @@ def snapshot(ep_done, base_all, env, net, nin, nout, use_mask, tag, run, plain, 
 class Replay:
     """Preallocated NumPy ring buffer: O(1) add, O(batch) random sampling."""
     def __init__(self, target_net_cap, nin, nact):
+        """Allocate arrays for `target_net_cap` transitions (obs size nin, nact actions)."""
         self.cap = target_net_cap
         self.n_valid_obsv = 0
         self.i = 0
@@ -259,6 +271,7 @@ class Replay:
         self.action_masks = np.zeros((target_net_cap, nact), bool)
 
     def add(self, observation, action_taken, reward, next_obs, done, mask_array):
+        """Store one transition, overwriting the oldest once full."""
         i = self.i
         self.observations[i] = observation
         self.actions[i] = action_taken
@@ -270,9 +283,11 @@ class Replay:
         self.n_valid_obsv = min(self.n_valid_obsv + 1, self.cap)
 
     def sample(self, bs):
+        """Uniformly sample `bs` stored transitions (with replacement)."""
         j = np.random.randint(0, self.n_valid_obsv, bs)
         return (self.observations[j], self.actions[j], self.rewards[j], 
                 self.next_obs[j], self.done_flags[j], self.action_masks[j])
 
     def __len__(self): 
+        """Number of valid stored transitions."""
         return self.n_valid_obsv

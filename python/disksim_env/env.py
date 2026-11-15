@@ -23,10 +23,11 @@ HERE = os.path.dirname(__file__)
 # Override with DISKSIM_PARFILE (a .parv whose model files sit beside it).
 DEFAULT_PARFILE = os.path.abspath(os.environ.get("DISKSIM_PARFILE") or
                                   os.path.join(HERE, "..", "..", "valid", "cheetah4LP.parv"))
-F = 6  # features per slot
+F = 6  # features per queue slot in the observation
 
 
 class DiskSchedEnv(gym.Env):
+    """Gymnasium env where the agent chooses which pending request DiskSim services next (see module docstring)."""
     metadata = {"render_modes": []}
 
     def __init__(self, parfile=DEFAULT_PARFILE, lib_path=None, queue_slots=16,
@@ -34,6 +35,7 @@ class DiskSchedEnv(gym.Env):
                  sizes=(8, 16, 32), reward_mode="queue_time", reward_scale=100.0,
                  invalid_penalty=5.0, max_consecutive_invalid=10,
                  wait_scale_ms=200.0, outfile=os.devnull):
+        """Configure workload, reward and spaces; briefly starts DiskSim just to read the disk geometry."""
         assert reward_mode in ("response", "service", "queue_time")
         self.parfile, self.outfile = parfile, outfile
         self.K, self.N = queue_slots, episode_requests
@@ -50,6 +52,7 @@ class DiskSchedEnv(gym.Env):
 
     # ---- workload -------------------------------------------------------
     def _new_arrival(self):
+        """Draw the next random request (exponential gap, random size/LBN/read-write) into self._next_req."""
         self._next_t += self.np_random.exponential(self.mean_ia)
         size = int(self.np_random.choice(self.sizes))
         lbn = int(self.np_random.integers(0, self.nblocks - size))
@@ -68,6 +71,7 @@ class DiskSchedEnv(gym.Env):
 
     # ---- gym API --------------------------------------------------------
     def reset(self, *, seed=None, options=None):
+        """Restart DiskSim and the workload; returns (obs, info)."""
         super().reset(seed=seed)
         self.sim.shutdown()
         self.sim.start(self.parfile, self.outfile)
@@ -82,16 +86,19 @@ class DiskSchedEnv(gym.Env):
         return self._obs(), self._info()
 
     def _ensure_work(self):
+        """If the queue is empty, jump simulated time to the next arrival so there is always something to schedule."""
         if not self.queue:  # idle: jump to next arrival
             self.T = self._next_req["t"]
             self._pull_arrivals(self.T)
 
     def action_masks(self):
+        """Boolean mask over slots: True where a pending request exists."""
         m = np.zeros(self.K, dtype=bool)
         m[:min(self.K, len(self.queue))] = True
         return m
 
     def _obs(self):
+        """Build the normalised observation: head state, backlog, then per-slot request features."""
         o = np.zeros(3 + self.K * F, np.float32)
         o[0], o[1] = self.head_cyl / self.ncyl, self.head_angle
         o[2] = min(len(self.queue) / (4 * self.K), 1.0)
@@ -103,11 +110,13 @@ class DiskSchedEnv(gym.Env):
         return o
 
     def _info(self, **kw):
+        """Info dict with the action mask and running statistics, plus any extra keys."""
         return dict(action_mask=self.action_masks(), time_ms=self.T, queue_len=len(self.queue),
                     completed=self.done_n,
                     mean_response_ms=self.sum_resp / self.done_n if self.done_n else 0.0, **kw)
 
     def step(self, action):
+        """Service the chosen queue slot; returns (obs, reward, terminated, truncated, info)."""
         if not self.sim.open:
             raise RuntimeError("DiskSim is not open: call reset() first. Only one "
                                "DiskSchedEnv can be live per process (another env's "
@@ -154,4 +163,5 @@ class DiskSchedEnv(gym.Env):
             self._info(response_ms=response, service_ms=service)
 
     def close(self):
+        """Shut down the underlying DiskSim instance."""
         self.sim.shutdown()

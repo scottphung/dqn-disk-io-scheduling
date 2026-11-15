@@ -14,16 +14,20 @@ Environment: WSL_PYTHON (default python3) selects the interpreter inside WSL.
 """
 import os, shlex, subprocess, sys
 
+# Folder of this file (the python/ project root); scripts run from here.
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Subcommand name -> script path (relative to HERE).
 SCRIPTS = {"sweep": "main.py", "main": "main.py", "smoke": os.path.join("examples", "dqn_smoke.py"),
            "dqn": os.path.join("examples", "dqn_smoke.py")}
 
 
 def usage():
+    """Print the module docstring and exit."""
     sys.exit(__doc__)
 
 
 def main():
+    """Parse the subcommand, then run the script directly (Linux/macOS) or via WSL (Windows)."""
     argv = sys.argv[1:]
     distro = None
     if argv[:1] == ["--distro"]:

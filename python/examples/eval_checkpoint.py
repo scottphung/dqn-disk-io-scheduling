@@ -11,6 +11,7 @@ import numpy as np, torch, torch.nn as nn, gymnasium as gym
 from baselines import fcfs, sstf, evaluate
 from utils import build_mlp, activation
 
+# ---- command-line options
 ap = argparse.ArgumentParser()
 ap.add_argument("checkpoint")
 ap.add_argument("--seeds", nargs=2, type=int, default=[1000, 1010], metavar=("START", "STOP"))
@@ -19,6 +20,7 @@ ap.add_argument("--no-baselines", action="store_true")
 ap.add_argument("--recycle-every", type=int, default=250, help="replace the DiskSim worker every N resets (0 = in-process)")
 a = ap.parse_args()
 
+# ---- rebuild the network from the checkpoint (handles older checkpoint layouts)
 ck = torch.load(a.checkpoint, weights_only=True)
 act = activation(ck.get("activation", "relu"))
 h = ck["hidden"]
@@ -31,6 +33,7 @@ else:                                      # older checkpoints without Dropout (
     net = nn.Sequential(nn.Linear(ck["nin"], h0), nn.ReLU(), nn.Linear(h0, h1), nn.ReLU(), nn.Linear(h1, ck["nout"]))
 net.load_state_dict(ck["state_dict"]); net.eval()
 
+# ---- rebuild the environment with the settings used in training (optionally a different load)
 kw = dict(ck["env_kwargs"])
 if a.interarrival is not None:
     kw["mean_interarrival_ms"] = a.interarrival
@@ -38,12 +41,14 @@ env = gym.make("DiskSchedRecycled-v0", recycle_every=a.recycle_every, **kw) if a
 assert env.observation_space.shape[0] == ck["nin"] and env.action_space.n == ck["nout"], "env does not match checkpoint"
 
 def greedy(obs, mask=None, rng=None):
+    """Argmax-Q policy over valid slots, usable with baselines.evaluate."""
     with torch.no_grad():
         q = net(torch.as_tensor(obs))
         if ck["use_mask"] and mask is not None:
             q = q.masked_fill(~torch.as_tensor(mask), -1e9)
         return int(q.argmax())
 
+# ---- evaluate each policy on the same seeds and report mean / spread / standard error
 print(f"checkpoint: {ck['tag']}")
 print(f"env: {kw}")
 seeds = range(*a.seeds)

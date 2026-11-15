@@ -1,3 +1,4 @@
+"""Package entry: exposes DiskSchedEnv and registers the Gymnasium ids DiskSched-v0 and DiskSchedRecycled-v0."""
 from gymnasium.envs.registration import register
 from .env import DiskSchedEnv
 

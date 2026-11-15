@@ -4,11 +4,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import numpy as np, gymnasium as gym
 import disksim_env  # registers DiskSched-v0
 
-F = 6
+F = 6  # features per slot; must match disksim_env.env.F
 
+# First-come-first-served: always take the oldest request (slot 0).
 def fcfs(obs, mask, rng): return 0
+# Shortest-seek-time-first: pick the valid slot with the smallest |cylinder delta| (feature 2).
 def sstf(obs, mask, rng):
     d = obs[3:].reshape(-1, F)[:, 2].copy(); d[~mask] = 9; return int(d.argmin())
+# Uniformly random valid slot.
 def rand(obs, mask, rng): return int(rng.choice(np.flatnonzero(mask)))
 
 def evaluate(policy, env, seeds, return_all=False):
@@ -30,6 +33,7 @@ def evaluate(policy, env, seeds, return_all=False):
         print(f"  warning: {bad}/{len(out)} episodes completed no requests (policy stuck on invalid actions)")
     return (np.nanmean(out), np.nanstd(out)) if bad < len(out) else (float("nan"), float("nan"))
 
+# CLI: compare FCFS / SSTF / random at a given mean interarrival time (ms).
 if __name__ == "__main__":
     ia = float(sys.argv[1]) if len(sys.argv) > 1 else 12.0
     env = gym.make("DiskSched-v0", mean_interarrival_ms=ia)

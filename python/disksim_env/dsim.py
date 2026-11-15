@@ -8,11 +8,13 @@ DEFAULT_LIB = os.environ.get("DISKSIM_LIB") or os.path.join(os.path.dirname(__fi
 
 
 class Obs(C.Structure):
+    """Mirror of the C struct filled by dsim_get_pos: head cylinder, head (surface), rotational angle in turns."""
     _fields_ = [("cylinder", C.c_int), ("head", C.c_int), ("angle_turns", C.c_double)]
 
 
 @contextmanager
 def _chdir(path):
+    """Temporarily change the working directory (DiskSim resolves model files relative to the .parv)."""
     old = os.getcwd()
     os.chdir(path)
     try:
@@ -21,6 +23,7 @@ def _chdir(path):
         os.chdir(old)
 
 
+# Optional request trace: set DSIM_TRACE=<file> to log every submitted request.
 _TRACE = open(os.environ["DSIM_TRACE"], "w", buffering=1) if os.environ.get("DSIM_TRACE") else None
 
 
@@ -30,9 +33,11 @@ class DiskSimHang(RuntimeError):
 
 
 class DiskSim:
+    """Wrapper around one libdsim.so instance: start/shutdown, submit a request, query time, geometry and head position."""
     _live = None  # DiskSim keeps global state: only one instance may be open.
 
     def __init__(self, lib_path=DEFAULT_LIB):
+        """Load the shared library and declare the C signatures; does not start a simulation yet."""
         self.lib = L = C.CDLL(os.path.abspath(lib_path))
         L.dsim_init.argtypes = [C.c_char_p, C.c_char_p]
         L.dsim_submit.argtypes = [C.c_int, C.c_ulong, C.c_int, C.c_int]
@@ -48,6 +53,7 @@ class DiskSim:
         self.open = False
 
     def start(self, parfile, outfile=os.devnull):
+        """Initialise DiskSim from a .parv parameter file (shutting down any other live instance first)."""
         if DiskSim._live is not None:   # library state is global: last starter wins
             DiskSim._live.shutdown()
         parfile = os.path.abspath(parfile)
@@ -60,30 +66,36 @@ class DiskSim:
         DiskSim._live = self
 
     def shutdown(self):
+        """Release the simulation (no-op if not open)."""
         if self.open:
             self.lib.dsim_shutdown()
             self.open = False
             DiskSim._live = None
 
     def geometry(self, devno=0):
+        """Return (cylinders, surfaces, total sectors) of the disk."""
         a, b, c = C.c_int(), C.c_int(), C.c_int()
         if self.lib.dsim_geometry(devno, C.byref(a), C.byref(b), C.byref(c)):
             raise RuntimeError("bad devno")
         return a.value, b.value, c.value  # cylinders, surfaces, total sectors
 
     def lbn_to_pbn(self, lbn, devno=0):
+        """Map a logical block number to its physical (cylinder, surface, sector)."""
         a, b, c = C.c_int(), C.c_int(), C.c_int()
         if self.lib.dsim_lbn_to_pbn(devno, lbn, C.byref(a), C.byref(b), C.byref(c)):
             raise ValueError(f"lbn {lbn} does not exist")
         return a.value, b.value, c.value
 
     def now(self):
+        """Current simulated time in ms."""
         return self.lib.dsim_now()
 
     def set_event_limit(self, n):
+        """Cap the events DiskSim may process per call, so hangs raise DiskSimHang instead of spinning forever."""
         self.lib.dsim_set_event_limit(n)
 
     def advance_to(self, t):
+        """Run simulated time forward to t ms (raises DiskSimHang if the event limit is hit)."""
         if self.lib.dsim_advance_to(t):
             raise DiskSimHang("event limit hit while advancing time")
 
@@ -100,6 +112,7 @@ class DiskSim:
         return t
 
     def head_state(self, devno=0):
+        """Return (cylinder, head, angle in turns) of the disk head, or None if unavailable."""
         o = Obs()
         if self.lib.dsim_get_pos(devno, C.byref(o)):
             return None

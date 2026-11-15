@@ -22,9 +22,11 @@ TIMEOUT_S = 600          # a worker silent this long is treated as dead
 
 
 class RecyclingEnv(gym.Env):
+    """Proxy env: forwards reset/step to a DiskSchedEnv in a worker subprocess that is periodically replaced."""
     metadata = {"render_modes": []}
 
     def __init__(self, recycle_every=250, **env_kwargs):
+        """Start the first worker; env_kwargs are passed through to DiskSchedEnv."""
         self.recycle_every, self._kw = int(recycle_every), env_kwargs
         self._proc = self._tx = self._rx = None
         self._resets = 0
@@ -38,6 +40,7 @@ class RecyclingEnv(gym.Env):
 
     # ---- worker management ------------------------------------------------
     def _start(self):
+        """Spawn a worker over two pipes, build its DiskSchedEnv and copy its spaces/attributes."""
         p2c_r, p2c_w = os.pipe(); c2p_r, c2p_w = os.pipe()          # parent->child, child->parent
         self._proc = subprocess.Popen([sys.executable, "-I", WORKER, str(p2c_r), str(c2p_w)],
                                       pass_fds=(p2c_r, c2p_w), cwd=os.path.dirname(WORKER))
@@ -49,6 +52,7 @@ class RecyclingEnv(gym.Env):
         self.restarts += 1
 
     def _stop(self):
+        """Ask the worker to close, then kill it if it does not exit; safe to call repeatedly."""
         p, self._proc = self._proc, None
         if p is None: return
         try:
@@ -63,6 +67,7 @@ class RecyclingEnv(gym.Env):
             p.kill(); p.wait()
 
     def _call(self, msg):
+        """Send one message to the worker and return its reply (raises on timeout or worker error)."""
         self._tx.send(msg)
         if not self._rx.poll(TIMEOUT_S):
             raise TimeoutError("DiskSim worker did not answer")
@@ -72,10 +77,12 @@ class RecyclingEnv(gym.Env):
         return payload
 
     def _alive(self):
+        """True if the worker process is still running."""
         return self._proc is not None and self._proc.poll() is None
 
     # ---- gym API -----------------------------------------------------------
     def reset(self, *, seed=None, options=None):
+        """Reset the env, replacing the worker first if it died or has served `recycle_every` resets."""
         super().reset(seed=seed)
         if not self._alive() or self._resets >= self.recycle_every:
             self._stop(); self._start()                              # fresh process: leaked memory is released
@@ -89,6 +96,7 @@ class RecyclingEnv(gym.Env):
         return out
 
     def step(self, action):
+        """Forward the action; on worker failure return a truncated dummy transition (info['worker_crashed']))."""
         try:
             out = self._call(("step", int(action)))
         except (EOFError, OSError, TimeoutError, BrokenPipeError):
@@ -100,16 +108,20 @@ class RecyclingEnv(gym.Env):
         return out
 
     def action_masks(self):
+        """Valid-action mask from the worker."""
         return self._call(("masks",))
 
     def close(self):
+        """Stop the worker."""
         self._stop()
 
     def __getattr__(self, name):           # K, N, reward_mode, ... as on DiskSchedEnv (used by the training scripts)
+        """Expose the cached DiskSchedEnv attributes (K, N, ...)."""
         if name != "_attrs" and name in self.__dict__.get("_attrs", {}):
             return self._attrs[name]
         raise AttributeError(name)
 
     def __del__(self):
+        """Best-effort worker cleanup on garbage collection."""
         try: self._stop()
         except Exception: pass

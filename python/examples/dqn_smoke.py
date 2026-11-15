@@ -34,6 +34,10 @@ from utils import (activation,
 
 
 def parse_args():
+    """Define and parse all command-line hyperparameters (grouped: exploration, optimisation, run/environment)."""
+    ####### Original baseline defaults commented out in favor of 
+    ####### better baselines for ease of experiments, but kept so that
+    ####### we can go back to them if needed
     # ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # ap.add_argument("episodes", nargs="?", type=int, default=50, help="training episodes (positional, or use --episodes)")
     # ap.add_argument("--episodes", dest="episodes_opt", type=int, default=None, help="same as the positional episodes")
@@ -109,6 +113,7 @@ def parse_args():
     return ap.parse_args()
 
 
+# ---- setup: parse options, build the environment
 A = parse_args()
 
 env_kwargs = {}
@@ -117,6 +122,7 @@ if A.reward_mode:
 if A.reward_scale: 
     env_kwargs["reward_scale"] = A.reward_scale
 
+# Recycled env (worker subprocess) avoids DiskSim's per-reset memory leak; recycle_every=0 runs in-process.
 env = gym.make("DiskSchedRecycled-v0", recycle_every=A.recycle_every, **env_kwargs) \
     if A.recycle_every > 0 \
     else gym.make("DiskSched-v0", **env_kwargs)
@@ -153,6 +159,7 @@ random.seed(A.seed)
 np.random.seed(A.seed)
 
 # MLPs for policy and target network
+# Online (policy) and target Q-networks.
 policy_network, target_network = mlp(A.policy_dropout), mlp(A.policy_dropout)
 WINIT_USED = init_weights(policy_network, A.winit, A.activation)   # target gets it via load_state_dict below
 print(f"weight init: {WINIT_USED} (requested {A.winit}, activation {A.activation.__name__})")
@@ -161,17 +168,23 @@ target_network.load_state_dict(policy_network.state_dict())
 policy_network.train()
 target_network.eval()  # Targets must be deterministic or eval lasts forever
 
-# Optimizer class
+# Optimizer class guarantees one of several hard-coded options are chosen
 if A.optim is torch.optim.SGD:
     opt = A.optim(policy_network.parameters(), lr=A.lr0, weight_decay=A.weight_decay, momentum=A.momentum)
 else:
     opt = A.optim(policy_network.parameters(), lr=A.lr0, weight_decay=A.weight_decay)
 
+# Replay buffer and global environment-step counter.
 buf = Replay(A.replay_cap, nin, nout)
 steps = A.steps
 
 
 def greedy(obs, net, use_mask, mask=None, rng=None):
+    """Argmax-Q action for one observation (eval mode, no grad, invalid slots masked).
+    
+    This picks the very best available action rather than an exploratory one so that
+    the model has best responses.
+    """
     was_training = net.training
     net.eval()
     try:
@@ -185,19 +198,23 @@ def greedy(obs, net, use_mask, mask=None, rng=None):
 
 
 def save_csv():
+    """Atomically write the per-episode training history to the run's CSV."""
     atomic(lambda f: np.savetxt(f, np.array(HIST, dtype=float).reshape(-1, 6), delimiter=",",
            header="episode,epsilon,lr,mean_response_ms,completed,disksim_hang", comments=""), CSV)
 
+# Baseline scores on the fixed evaluation workloads, computed once.
 BASE_ALL = {n: evaluate(p, env, SEEDS, return_all=True) for n, p in [("FCFS", fcfs), ("SSTF", sstf)]}  # computed once, per workload
 BASE = {n: ms(v) for n, v in BASE_ALL.items()}                                                         # over the full final set
 print(f"run folder: {RUN_DIR}\nbaselines ({A.eval_episodes} workloads): "
     + f"FCFS {BASE['FCFS'][0]:.1f} ms, SSTF {BASE['SSTF'][0]:.1f} ms", flush=True)
 
+# ---- training loop
 t0 = time.time()
 status = "interrupted"
 
 try:
   for ep in range(EPISODES):
+    # New workload per episode; epsilon schedule: hold, linear decay, floor. Learning rate: cosine decay.
     obs, info = env.reset(seed=TRAIN_SEED0 + ep)
     done = False
     mask = info["action_mask"]
@@ -210,6 +227,7 @@ try:
         pg["lr"] = lr
 
     while not done:
+        # Epsilon-greedy action selection (random choices restricted to valid slots when masking).
         if random.random() < eps:
             a = int(np.random.choice(np.flatnonzero(mask))) if USE_MASK else env.action_space.sample()
         else:
@@ -223,6 +241,7 @@ try:
         done = term or trunc
         steps = steps + 1
 
+        # One DQN gradient step: Huber loss against the target-network Bellman target.
         if len(buf) >= A.warmup and steps % A.train_every == 0:
             o, a_, r_, n_, d_, m_ = buf.sample(A.batch)
             q = policy_network(torch.as_tensor(o)).gather(1, torch.as_tensor(a_).long()[:, None]).squeeze(1)
@@ -238,9 +257,11 @@ try:
             loss.backward()
             opt.step()
 
+        # Periodically sync the target network.
         if steps % A.tgt_update == 0: 
             target_network.load_state_dict(policy_network.state_dict())
 
+    # Log the episode; periodically print progress and snapshot (weights, CSV, eval, PNG).
     HIST.append((ep, eps, lr, info['mean_response_ms'], info['completed'], float(bool(info.get('disksim_hang')))))
 
     if ep % 25 == 0:
@@ -258,6 +279,7 @@ finally:   # normal end, crash or Ctrl-C: keep whatever was trained so far
                  RUN_DIR, SEEDS, SNAP_N, EPISODES, EVAL_HIST, LAST, save_csv, final=True)
     hangs = int(sum(x[5] for x in HIST))
 
+    # Final report and summary.json (consumed by main.py).
     if LAST:
         res = LAST["res"]
         print(f"--- final eval after {LAST['ep']} episodes, {LAST['n']} workloads (mask={'on' if USE_MASK else 'off'}) ---")

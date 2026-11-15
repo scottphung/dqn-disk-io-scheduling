@@ -5,10 +5,12 @@ import os, sys, traceback
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # <root>/python
 from multiprocessing.connection import Connection
 
+# DiskSchedEnv attributes copied to the parent at 'make' time (read-only mirrors).
 ATTRS = ("reward_mode", "reward_scale", "K", "N", "mean_ia", "read_frac", "sizes", "invalid_penalty",
          "max_invalid", "wait_scale", "ncyl", "nblocks")
 
 def main():
+    """Serve ('make'|'reset'|'step'|'masks'|'close') commands from the parent until it disconnects."""
     rd, wr = Connection(int(sys.argv[1]), writable=False), Connection(int(sys.argv[2]), readable=False)
     env = None
     while True:
